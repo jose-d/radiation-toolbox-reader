@@ -31,6 +31,12 @@ Number of records is returned by the ``count()`` method:
 
    r.count()
 
+Using Context Manager Protocol:
+
+.. code-block:: python
+
+   with reader(filename) as r:
+       print(r.count())
 
 Records may be read in a for loop:
 

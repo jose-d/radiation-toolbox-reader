@@ -1,8 +1,11 @@
+from contextlib import AbstractContextManager
+from types import TracebackType
+
 from .exceptions import ReaderError
 
 __version__ = "1.0.0"
 
-class ReaderBase:
+class ReaderBase(AbstractContextManager['ReaderBase']):
     """Base reader class.
     """
     def __init__(self, filepath, rb=False):
@@ -19,6 +22,21 @@ class ReaderBase:
         """
         if self._fd:
             self._fd.close()
+
+    def __enter__(self):
+        """Enter context manager protocol.
+        """
+        super().__enter__()
+        return self
+
+    def __exit__(self,
+                 exc_type: None | type[BaseException],
+                 exc_val: None | BaseException,
+                 exc_tb: None | TracebackType,
+                 /):
+        """Exit context manager protocol.
+        """
+        super().__exit__(exc_type, exc_val, exc_tb)
 
     def count(self):
         """Count data items.
