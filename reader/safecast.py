@@ -10,8 +10,6 @@ from builtins import object
 
 import os
 import csv
-from dateutil import tz
-from datetime import datetime
 
 from .exceptions import ReaderError
 from .logger import ReaderLogger

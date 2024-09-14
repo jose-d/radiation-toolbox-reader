@@ -1,6 +1,12 @@
-image: python:3.11-alpine
+image: python:3.12-alpine
 
-test:
+run-test:
+  stage: test
+  script:
+  - pip install pytest
+  - python3 -m pytest tests/test_reader_log.py tests/test_reader_ers.py
+
+build-pages:
   stage: test
   script:
   - pip install -U sphinx
@@ -10,7 +16,7 @@ test:
   except:
   - master
 
-pages:
+deploy-pages:
   stage: deploy
   script:
   - pip install -U sphinx
