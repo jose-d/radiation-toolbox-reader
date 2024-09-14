@@ -1,7 +1,9 @@
 # Radiation Toolbox Reader
 
 Python package designed for reading data formats used by radiation
-monitoring devices. Currently supported formats (reading only):
+monitoring devices.
+
+Currently supported formats (reading only):
 
 - Safecast LOG
 - ERS
@@ -14,4 +16,4 @@ Developed by [OpenGeoLabs](https://opengeolabs.cz/en/home)
 
 ## License
 
-TBD
+GNU General Public License v3.0 or later
