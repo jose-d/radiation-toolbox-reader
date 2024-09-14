@@ -1,6 +1,6 @@
 image: python:3.12-alpine
 
-run-test:
+run-tests:
   stage: test
   script:
   - pip install pytest
