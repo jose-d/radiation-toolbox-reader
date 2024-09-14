@@ -1,0 +1,49 @@
+# Author(s): OpenGeoLabs
+# Copyright (C) SURO and OpenGeoLabs
+#
+# This file is part of Radiation Toolbox.
+#
+# Radiation Toolbox is free software: you can redistribute it and/or
+# modify it under the terms of the GNU General Public License as
+# published by the Free Software Foundation, either version 3 of the
+# License, or (at your option) any later version.
+#
+# Radiation Toolbox is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+# General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with Radiation Toolbox. If not, see <https://www.gnu.org/licenses/>.
+
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[metadata]
+name = 'radiation-toolbox-reader'
+dynamic = ["version"]
+
+[tool.setuptools]
+packages = ["radiation_toolbox_reader"]
+
+[tool.setuptools.package-dir]
+radiation_toolbox_reader = "reader"
+
+[tool.setuptools.dynamic]
+version = {attr = "reader.__version__"}
+
+[project]
+name = 'radiation-toolbox-reader'
+dynamic = ["version"]
+description = 'Radiation Toolbox Reader'
+readme = 'README.md'
+authors = [
+    {name = "Martin Landa", email = "martin.landa@opengeolabs.cz"},
+]
+requires-python = ">=3.9"
+license = {text = "GPLv3"}
+
+[project.urls]
+# documentation = ''
+repository = 'https://gitlab.com/opengeolabs/radiation-toolbox/radiation-toolbox-reader'

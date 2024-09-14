@@ -1,0 +1,7 @@
+build/
+venv/
+tests/__pycache__/
+site/
+*.egg-info/
+tests/data/sample.sqlite
+*~
