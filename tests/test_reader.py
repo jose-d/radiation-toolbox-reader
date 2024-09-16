@@ -5,9 +5,9 @@ class TestReader:
             assert r.count() == count
 
     @staticmethod
-    def _attributeDefs(reader, filename):
+    def _attributeDefs(reader, filename, ref):
         with reader(filename) as r:
-            return r.attributeDefs()
+            assert list(r.attributeDefs().keys()) == ref
 
     @staticmethod
     def _record(reader, filename, ref):

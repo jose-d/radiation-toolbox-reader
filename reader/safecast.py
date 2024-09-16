@@ -10,6 +10,7 @@ from builtins import object
 
 import os
 import csv
+from collections import OrderedDict
 
 from .exceptions import ReaderError
 from .logger import ReaderLogger
@@ -18,6 +19,8 @@ from . import ReaderBase
 class SafecastReader(ReaderBase):
     """Reader class for reading Safecast format (LOG files).
     """
+    _scan_attributes = False
+
     def __init__(self, filepath):
         """Constructor.
 
@@ -47,7 +50,17 @@ class SafecastReader(ReaderBase):
                 # EOF
                 return None
             if not line.startswith('#'):
-                return list(csv.reader([line]))[0]
+                item = OrderedDict()
+                data = list(csv.reader([line]))[0]
+                last_item = data[-1].split('*')
+                data[-1] = last_item[0]
+                data.append('*' + last_item[1])
+                attrs = list(self._attributes.keys())
+                for idx in range(len(data)):
+                    k = attrs[idx]
+                    item[k] = self._attributes[k]['type'](data[idx]) if self._attributes else data[idx]
+
+                return item
 
     def _read_header(self):
         """Read LOG header and store metadata items.
@@ -84,7 +97,7 @@ class SafecastReader(ReaderBase):
                 _read_header_line(line, header_line)
                 header_line += 1
             if header_line == 3:
-                ReaderLogger.debug("LOG header correct\n")
+                ReaderLogger.debug("LOG header correct")
                 # read one more line to get the device id
                 _read_header_line(next(self._fd), header_line)
                 break

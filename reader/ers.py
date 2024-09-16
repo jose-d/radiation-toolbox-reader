@@ -1,4 +1,3 @@
-import os
 from collections import OrderedDict
 
 from . import ReaderBase
@@ -11,14 +10,14 @@ class ERSReader(ReaderBase):
         """Read next data item.
         """
         while True:
-            line = self._fd.readline().rstrip(os.linesep)
+            line = self._fd.readline().rstrip()
             if not line:
                 # EOF
                 return None
             if line.startswith('PA '):
                 item = OrderedDict()
                 for it in line.split(';'):
-                    k, v = it.split(' ', 1)
+                    k, v = map(lambda x: x.strip(), it.strip().split(' ', 1))
                     if k == '#S':
                         # see https://gitlab.com/opengeolabs/qgis-radiation-toolbox-plugin/issues/41#note_137813150
                         idx = 1
@@ -29,7 +28,7 @@ class ERSReader(ReaderBase):
                         # https://gitlab.com/opengeolabs/qgis-radiation-toolbox-plugin/issues/38#note_153255013
                         if ',' in v and k == 'DHSR':
                             v = v.replace(',', '.')
-                        item[k] = v
+                        item[k] = self._attributes[k]['type'](v) if self._attributes else v
 
                 return item
 
