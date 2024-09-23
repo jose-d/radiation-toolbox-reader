@@ -3,7 +3,10 @@ image: python:3.12-alpine
 run-tests:
   stage: test
   script:
+  - apk add proj proj-dev proj-util gcc musl-dev tzdata
+  - ln -sf /usr/share/zoneinfo/Europe/Prague /etc/localtime
   - pip install pytest
+  - pip install -r requirements.txt
   - python3 -m pytest tests/test_reader_log.py tests/test_reader_ers.py
 
 build-pages:

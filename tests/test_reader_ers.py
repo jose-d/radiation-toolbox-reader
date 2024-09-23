@@ -17,7 +17,7 @@ class TestReaderLog(TestReader):
         self._attributeDefs(Reader, self.dataFile, ref)
 
     def test_003(self):
-        """Check first record."""
+        """Check selected records."""
         ref = OrderedDict({
             'PA': 'demo_point-0001',
             'CD': '2015-04-01',
@@ -33,3 +33,6 @@ class TestReaderLog(TestReader):
         })
         self._record(Reader, self.dataFile, ref)
 
+    def test_004(self):
+        """Test CSV export."""
+        self._exportCSV(Reader, self.dataFile)

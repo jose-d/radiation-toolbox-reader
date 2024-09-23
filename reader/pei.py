@@ -7,7 +7,7 @@ from .exceptions import ReaderError
 
 class PEIReader(ReaderBase):
     def __init__(self, filepath):
-        super(PEIReader, self).__init__(filepath, rb=True)
+        super().__init__(filepath, rb=True)
 
         # attributes to be ignored, see
         # https://gitlab.com/opengeolabs/qgis-radiation-toolbox-plugin/issues/37#note_149160559

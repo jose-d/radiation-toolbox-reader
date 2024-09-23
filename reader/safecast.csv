@@ -1,17 +1,23 @@
-attribute;type;alias
-device;str;Device
-device_id;str;Device ID
-date_time;str;Datetime
-cpm;int;CPM
-pulses5s;int;Pulses 5sec
-pulses_total;int;Pulses total
-validity;str;Validity
-lat_deg;str;Latitude (deg)
-hemisphere;str;Hemisphere
-long_deg;str;Longitude (deg)
-east_west;str;East/West
-altitude;float;Altitude
-gps_validity;str;GPS Validity
-sat;int;Sat
-hdop;int;HDOP
-checksum;str;CheckSum
+attribute;type;alias;computed
+device;str;Device;0
+device_id;str;Device ID;0
+date_time;str;Datetime;0
+cpm;int;CPM;0
+pulses5s;int;Pulses 5sec;0
+pulses_total;int;Pulses total;0
+validity;str;Validity;0
+lat_deg;str;Latitude (deg);0
+hemisphere;str;Hemisphere;0
+long_deg;str;Longitude (deg);0
+east_west;str;East/West;0
+altitude;float;Altitude;0
+gps_validity;str;GPS Validity;0
+sat;int;Sat;0
+hdop;int;HDOP;0
+checksum;str;CheckSum;0
+ader_microsvh;float;ADER (microSv/h);1
+time_local;str;Local time;1
+speed_kmph;float;Speed (km/h);2
+dose_increment;float;Increment DOSE;2
+time_cumulative;str;Cumulative time;2
+dose_cumulative;float;Cumulative DOSE;2

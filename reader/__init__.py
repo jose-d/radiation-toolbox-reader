@@ -16,7 +16,7 @@ class ReaderBase(AbstractContextManager['ReaderBase']):
     """
     _scan_attributes = True
 
-    def __init__(self, filepath, rb=False):
+    def __init__(self, filepath, rb=False, computed_attributes=False):
         self._filepath = filepath
 
         try:
@@ -27,6 +27,7 @@ class ReaderBase(AbstractContextManager['ReaderBase']):
 
         # attribute names & data types
         self._attributes = None
+        self.computed_attributes = computed_attributes
         self._attributes = self.attributeDefs()
 
     def __del__(self):
@@ -63,19 +64,19 @@ class ReaderBase(AbstractContextManager['ReaderBase']):
     def __iter__(self):
         """Loop through features.
         """
-        self._reset()
+        self.reset()
         return self
 
     def __next__(self):
         """Return next record.
         """
         item = self._next_data_item()
-        if not item:
+        if item is None:
             raise StopIteration
 
         return item
 
-    def _reset(self):
+    def reset(self):
         """Reset reading.
         """
         self._fd.seek(0, 0)
@@ -87,7 +88,7 @@ class ReaderBase(AbstractContextManager['ReaderBase']):
 
         :param counter: counter string
         """
-        self._reset()
+        self.reset()
 
         lines = 0
         buf_size = 1024 * 1024
@@ -106,15 +107,19 @@ class ReaderBase(AbstractContextManager['ReaderBase']):
         :param str def_file: CSV defintion file
         """
         def addAttribute(row):
-            attrbs = {
+            attrb = {
                 row['attribute']: {
                     "type" : eval(row['type'])
                 }
             }
             if 'alias' in row and row['alias']:
-                attrbs[row['attribute']]['alias'] = row['alias'].replace('_', ' ')
+                attrb[row['attribute']]['alias'] = row['alias'].replace('_', ' ')
+            if 'computed' in row and row['computed']:
+                computed = attrb[row['attribute']]['computed'] = int(row['computed'])
+                if self.computed_attributes is False and computed > 0:
+                    return {}
 
-            return attrbs
+            return attrb
 
         if os.path.exists(def_file):
             with open(def_file) as fd:
@@ -125,9 +130,9 @@ class ReaderBase(AbstractContextManager['ReaderBase']):
         self._attributes = OrderedDict()
         if self._scan_attributes:
             # limit attributes based on input file (first feature) - ERS/PEI format specific
-            self._reset()
+            self.reset()
             item = self._next_data_item()
-            self._reset()
+            self.reset()
             for name in item.keys():
                 # first try full name match
                 found = False
@@ -167,3 +172,16 @@ class ReaderBase(AbstractContextManager['ReaderBase']):
             os.path.dirname(__file__),
             os.path.splitext(inspect.getfile(self.__class__))[0] + '.csv'
         )
+
+    def toCSV(self, filename, sep=','):
+        """Export data into CSV file.
+
+        :param str filename: CSV filename
+        :param str sep: separator
+        """
+        with open(filename, "w") as fd:
+            # header
+            fd.write(sep.join(self.attributeDefs().keys()) + os.linesep)
+            # body
+            for item in self:
+                fd.write(sep.join(map(str, item.values())) + os.linesep)
