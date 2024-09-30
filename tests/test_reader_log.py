@@ -86,3 +86,8 @@ class TestReaderLog(TestReader):
     def test_004(self):
         """Test CSV export."""
         self._exportCSV(Reader, self.dataFile)
+
+    def test_005(self):
+        """Test GDAL-based export."""
+        self._exportGDAL(Reader, self.dataFile, 'GPKG', 'gpkg')
+        self._exportGDAL(Reader, self.dataFile, 'SQLite', 'db')

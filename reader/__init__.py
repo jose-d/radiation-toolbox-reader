@@ -3,11 +3,13 @@ import inspect
 import csv
 import copy
 
+from pathlib import Path
 from contextlib import AbstractContextManager
 from types import TracebackType
 from collections import OrderedDict
 
-from .exceptions import ReaderError
+from .exceptions import ReaderError, ReaderExportError
+from .logger import ReaderLogger
 
 __version__ = "1.0.0"
 
@@ -56,6 +58,15 @@ class ReaderBase(AbstractContextManager['ReaderBase']):
         """
         raise NotImplementedError()
 
+    def _get_point(self, item):
+        """Get point coordinates.
+
+        :param OrderedDict: item
+
+        :return tuple: point coordinates (x, y)
+        """
+        raise NotImplementedError()
+
     def _next_data_item(self):
         """Read next data item.
         """
@@ -79,7 +90,7 @@ class ReaderBase(AbstractContextManager['ReaderBase']):
     def reset(self):
         """Reset reading.
         """
-        self._fd.seek(0, 0)
+        self._fd.seek(0)
 
     def _count(self, counter):
         """Count data items.
@@ -99,6 +110,7 @@ class ReaderBase(AbstractContextManager['ReaderBase']):
             lines += buf.count(counter)
             buf = read_f(buf_size)
 
+        self.reset()
         return lines
 
     def _readAttributeDefs(self, def_file):
@@ -176,7 +188,7 @@ class ReaderBase(AbstractContextManager['ReaderBase']):
     def toCSV(self, filename, sep=','):
         """Export data into CSV file.
 
-        :param str filename: CSV filename
+        :param str filename: target CSV file path
         :param str sep: separator
         """
         with open(filename, "w") as fd:
@@ -185,3 +197,58 @@ class ReaderBase(AbstractContextManager['ReaderBase']):
             # body
             for item in self:
                 fd.write(sep.join(map(str, item.values())) + os.linesep)
+
+    def export(self, filename, driver_name):
+        """Export data using GDAL library.
+
+        :param str filename: target file path
+        :param str driver_name: GDAL driver to be used to export data
+        """
+        if driver_name not in ("GPKG", "SQLite"):
+            ReaderLogger.warning(f"GDAL driver {driver_name} is not supported. "
+                                 "Its functionality is not guaranteed.")
+
+        from osgeo import gdal, ogr, osr
+        gdal.UseExceptions()
+
+        driver = ogr.GetDriverByName(driver_name)
+        if driver is None:
+            raise ReaderExportError(f"Unknown GDAL driver {driver_name}")
+        try:
+            ReaderLogger.info(f"Creating output file: {filename}")
+            ds = driver.CreateDataSource(filename)
+        except RuntimeError as e:
+            raise ReaderExportError(f"{e}")
+
+        # create layer
+        layer_name = Path(self._filepath).stem
+        srs = osr.SpatialReference()
+        srs.ImportFromEPSG(4326)
+        layer = ds.CreateLayer(layer_name, srs, geom_type=ogr.wkbPoint)
+
+        # create fields
+        field_types = {
+            int: ogr.OFTInteger,
+            float: ogr.OFTReal,
+            str: ogr.OFTString,
+        }
+        field_names = []
+        for k, v in self.attributeDefs().items():
+            field_name = k.replace("-", "_") if "-" in k else k
+            layer.CreateField(ogr.FieldDefn(field_name, field_types[v['type']]))
+            field_names.append(field_name)
+
+        # write features
+        layer_defn = layer.GetLayerDefn()
+        for rec in self:
+            feature = ogr.Feature(layer_defn)
+            for idx, value in enumerate(rec.values()):
+                feature.SetField(field_names[idx], value)
+            geometry = ogr.Geometry(ogr.wkbPoint)
+            geometry.AddPoint_2D(*self._get_point(rec))
+            feature.SetGeometry(geometry)
+            layer.CreateFeature(feature)
+            feature = None
+
+        self.reset()
+        ds.Close()

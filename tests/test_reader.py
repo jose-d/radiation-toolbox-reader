@@ -30,7 +30,7 @@ class TestReader:
                 assert comp_record(next(r), ref)
             else:
                 for i in range(idx+1):
-                    item = r.__next__()
+                    item = next(r)
                 assert comp_record(item, ref)
 
     @staticmethod
@@ -58,3 +58,23 @@ class TestReader:
                 assert next(csv_reader) == first_item
 
         os.remove(tmp.name)
+
+    @staticmethod
+    def _exportGDAL(reader, filename, driver_name, extension):
+        from osgeo import gdal
+
+        with reader(filename) as r:
+            temp_path = f"{tempfile.mktemp()}.{extension}"
+            r.export(temp_path, driver_name=driver_name)
+
+            # check result
+            ds =  gdal.OpenEx(temp_path, gdal.OF_VECTOR)
+            assert ds.GetLayerCount() == 1
+            assert ds.GetLayer().GetFeatureCount() == r.count()
+
+            # check first item
+            first_feat = ds.GetLayer().GetNextFeature()
+            first_item = next(r)
+            for k, v in first_item.items():
+                field_name = k.replace("-", "_") if "-" in k else k
+                assert first_feat.GetField(field_name) == v

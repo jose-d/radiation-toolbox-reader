@@ -11,3 +11,8 @@ class ReaderError(Exception):
     """Reader error class.
     """
     pass
+
+class ReaderExportError(Exception):
+    """Reader error class when exporting data.
+    """
+    pass

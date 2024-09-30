@@ -3,7 +3,7 @@ image: python:3.12-alpine
 run-tests:
   stage: test
   script:
-  - apk add proj proj-dev proj-util gcc musl-dev tzdata
+  - apk add proj proj-dev proj-util gcc musl-dev tzdata gdal gdal-dev g++
   - ln -sf /usr/share/zoneinfo/Europe/Prague /etc/localtime
   - pip install pytest
   - pip install -r requirements.txt

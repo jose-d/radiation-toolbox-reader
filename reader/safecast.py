@@ -143,6 +143,13 @@ class SafecastReader(ReaderBase):
 
         return header_line
 
+    def reset(self):
+        """Reset reading.
+        """
+        self._items = None
+        self._item_idx = -1
+        super().reset()
+
     def count(self):
         """Get data item count.
         """
@@ -319,6 +326,18 @@ class SafecastReader(ReaderBase):
             val *= -1
         return val
 
+    def _get_point(self, item):
+        """Get point coordinates.
+
+        :param OrderedDict: item
+
+        :return tuple: point coordinates (x, y)
+        """
+        return (
+            self._coords_float(item['long_deg'], item['east_west']),
+            self._coords_float(item['lat_deg'], item['hemisphere'])
+        )
+
     def _compute_attributes(self, items):
         # get first valid datetime
         first_valid_date = None
@@ -358,10 +377,7 @@ class SafecastReader(ReaderBase):
                 time_local = self._layer.tr("unknown")
 
             # compute coordinates
-            point = (
-                self._coords_float(item['long_deg'], item['east_west']),
-                self._coords_float(item['lat_deg'], item['hemisphere'])
-            )
+            point = self._get_point(item)
             if prev is not None:
                 timediff = self._datetimediff(
                     prev_date_time,
