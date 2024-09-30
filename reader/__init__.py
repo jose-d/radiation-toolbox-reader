@@ -58,7 +58,7 @@ class ReaderBase(AbstractContextManager['ReaderBase']):
         """
         raise NotImplementedError()
 
-    def _get_point(self, item):
+    def _getPoint(self, item):
         """Get point coordinates.
 
         :param OrderedDict: item
@@ -245,7 +245,7 @@ class ReaderBase(AbstractContextManager['ReaderBase']):
             for idx, value in enumerate(rec.values()):
                 feature.SetField(field_names[idx], value)
             geometry = ogr.Geometry(ogr.wkbPoint)
-            geometry.AddPoint_2D(*self._get_point(rec))
+            geometry.AddPoint_2D(*self._getPoint(rec))
             feature.SetGeometry(geometry)
             layer.CreateFeature(feature)
             feature = None

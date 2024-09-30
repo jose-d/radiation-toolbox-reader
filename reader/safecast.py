@@ -43,7 +43,7 @@ class SafecastReader(ReaderBase):
         try:
             super().__init__(filepath, computed_attributes=computed_attributes)
             self.nlines = self._count('\n')
-            self.nlines -= self._read_header()
+            self.nlines -= self._readHeader()
         except (IOError, ReaderError) as e:
             raise ReaderError("{}".format(e))
 
@@ -75,7 +75,7 @@ class SafecastReader(ReaderBase):
             if self.computed_attributes:
                 for k, v in self._attributes.items():
                     if v['computed'] == 1: # may be computed per item
-                        item[k] = self._compute_attribute(k, item)
+                        item[k] = self._computeAttribute(k, item)
 
             return item
 
@@ -93,14 +93,14 @@ class SafecastReader(ReaderBase):
                         break # EOF
                     self._items.append(item)
 
-                self._compute_attributes(self._items)
+                self._computeAttributes(self._items)
 
             self._item_idx += 1
             return self._items[self._item_idx] if self._item_idx < len(self._items) else None
         else:
             return self._next_data_item_()
 
-    def _read_header(self):
+    def _readHeader(self):
         """Read LOG header and store metadata items.
         """
         # TODO: be less pedantic
@@ -155,7 +155,7 @@ class SafecastReader(ReaderBase):
         """
         return self.nlines
 
-    def _compute_attribute(self, attribute, item):
+    def _computeAttribute(self, attribute, item):
         """Compute attribute for single item.
 
         :param str attribute: attribute name to be computed
@@ -200,7 +200,7 @@ class SafecastReader(ReaderBase):
 
         return local.strftime('%H:%M:%S')
 
-    def _check_date(self, fdate):
+    def _checkDate(self, fdate):
         """Check if date is valid.
 
         :param fdate: date to be checked
@@ -249,7 +249,7 @@ class SafecastReader(ReaderBase):
 
         return val2 - val1
 
-    def _validate_date(self, curr_datetime, prev_datetime, first_valid_date):
+    def _validateDate(self, curr_datetime, prev_datetime, first_valid_date):
         """Validate date.
 
         :param curr_datetime: date to be validated
@@ -258,7 +258,7 @@ class SafecastReader(ReaderBase):
 
         :return: validate date, update flag
         """
-        if self._check_date(curr_datetime):
+        if self._checkDate(curr_datetime):
             return curr_datetime, False
 
         if prev_datetime:
@@ -312,7 +312,7 @@ class SafecastReader(ReaderBase):
         return distance
 
     @staticmethod
-    def _coords_float(coord, ne):
+    def _coordsFloat(coord, ne):
         """Convert coordinates to DMS.
 
         :param coord: coordinates as a string
@@ -326,7 +326,7 @@ class SafecastReader(ReaderBase):
             val *= -1
         return val
 
-    def _get_point(self, item):
+    def _getPoint(self, item):
         """Get point coordinates.
 
         :param OrderedDict: item
@@ -334,15 +334,15 @@ class SafecastReader(ReaderBase):
         :return tuple: point coordinates (x, y)
         """
         return (
-            self._coords_float(item['long_deg'], item['east_west']),
-            self._coords_float(item['lat_deg'], item['hemisphere'])
+            self._coordsFloat(item['long_deg'], item['east_west']),
+            self._coordsFloat(item['lat_deg'], item['hemisphere'])
         )
 
-    def _compute_attributes(self, items):
+    def _computeAttributes(self, items):
         # get first valid datetime
         first_valid_date = None
         for item in items:
-            if self._check_date(item["date_time"]):
+            if self._checkDate(item["date_time"]):
                 first_valid_date = datetime.strptime(item["date_time"], "%Y-%m-%dT%H:%M:%SZ").date()
                 break
         if first_valid_date is None:
@@ -364,7 +364,7 @@ class SafecastReader(ReaderBase):
         start = time.perf_counter()
         for item in items:
             # fix date if invalid
-            date_time, newdt = self._validate_date(item["date_time"], prev_date_time, first_valid_date)
+            date_time, newdt = self._validateDate(item["date_time"], prev_date_time, first_valid_date)
             # compute ader stats
             if ader_max is None or ader_max < item["ader_microsvh"]:
                 ader_max = item["ader_microsvh"]
@@ -377,7 +377,7 @@ class SafecastReader(ReaderBase):
                 time_local = self._layer.tr("unknown")
 
             # compute coordinates
-            point = self._get_point(item)
+            point = self._getPoint(item)
             if prev is not None:
                 timediff = self._datetimediff(
                     prev_date_time,
