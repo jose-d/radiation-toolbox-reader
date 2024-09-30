@@ -58,7 +58,7 @@ class ColoredLogger(logging.Logger):
     FORMAT = "[%(name)s][%(levelname)s] %(message)s"
     COLOR_FORMAT = formatter_message(FORMAT, True)
     def __init__(self, name):
-        logging.Logger.__init__(self, name, logging.DEBUG)
+        logging.Logger.__init__(self, name, logging.INFO)
         self.propagate = False
 
         color_formatter = ColoredFormatter(self.COLOR_FORMAT)

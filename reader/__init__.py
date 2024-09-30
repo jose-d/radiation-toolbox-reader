@@ -185,7 +185,7 @@ class ReaderBase(AbstractContextManager['ReaderBase']):
             os.path.splitext(inspect.getfile(self.__class__))[0] + '.csv'
         )
 
-    def toCSV(self, filename, sep=','):
+    def exportCSV(self, filename, sep=','):
         """Export data into CSV file.
 
         :param str filename: target CSV file path
@@ -215,7 +215,7 @@ class ReaderBase(AbstractContextManager['ReaderBase']):
         if driver is None:
             raise ReaderExportError(f"Unknown GDAL driver {driver_name}")
         try:
-            ReaderLogger.info(f"Creating output file: {filename}")
+            ReaderLogger.debug(f"Creating output file: {filename}")
             ds = driver.CreateDataSource(filename)
         except RuntimeError as e:
             raise ReaderExportError(f"{e}")

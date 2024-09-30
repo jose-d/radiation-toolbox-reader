@@ -26,7 +26,7 @@ class SafecastReader(ReaderBase):
     """
     _scan_attributes = False
 
-    def __init__(self, filepath, computed_attributes=True):
+    def __init__(self, filepath, computed_attributes=False):
         """Constructor.
 
         Check format, version and deadtime.

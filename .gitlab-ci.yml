@@ -12,7 +12,8 @@ run-tests:
 build-pages:
   stage: test
   script:
-  - pip install -U sphinx
+  - apk add pandoc
+  - pip install -r docs/requirements.txt
   - (cd docs; sphinx-build -b html source ../public)
   only:
   - branches
@@ -22,7 +23,8 @@ build-pages:
 deploy-pages:
   stage: deploy
   script:
-  - pip install -U sphinx
+  - apk add pandoc    
+  - pip install -r docs/requirements.txt
   - (cd docs; sphinx-build -b html source ../public)
   artifacts:
     paths:

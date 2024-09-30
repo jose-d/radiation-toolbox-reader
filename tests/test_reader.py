@@ -41,7 +41,7 @@ class TestReader:
 
         with tempfile.NamedTemporaryFile(delete=False) as tmp:
             with reader(filename) as r:
-                r.toCSV(tmp.name)
+                r.exportCSV(tmp.name)
 
             for count, line in enumerate(tmp):
                 pass

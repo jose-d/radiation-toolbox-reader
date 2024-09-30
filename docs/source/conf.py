@@ -30,6 +30,9 @@ sys.path.append(os.path.abspath('extensions'))
 
 # extensions = ['sphinx.ext.todo', 'sphinx.ext.imgmath', 'sphinx.ext.viewcode',
 #               'autoimage', 'numfig']
+extensions = [
+    'nbsphinx',  # Integrate Jupyter Notebooks and Sphinx
+]
 
 todo_include_todos = True
 
