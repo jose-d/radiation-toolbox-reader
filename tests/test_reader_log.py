@@ -1,4 +1,9 @@
+import tempfile
+
 from collections import OrderedDict
+from pathlib import Path
+
+from osgeo import gdal
 
 from reader.safecast import SafecastReader as Reader
 from tests.test_reader import TestReader
@@ -91,3 +96,21 @@ class TestReaderLog(TestReader):
         """Test GDAL-based export."""
         self._exportGDAL(Reader, self.dataFile, 'GPKG', 'gpkg')
         self._exportGDAL(Reader, self.dataFile, 'SQLite', 'db')
+
+    def test_006(self):
+        """Test export on multiple files."""
+        counts = {}
+        temp_path = f"{tempfile.mktemp()}.db"
+        files = list(Path(self.dataFile).parent.glob("*.log"))
+        for fn in files:
+            with Reader(fn) as r:
+                counts[fn.stem] = r.count()
+                r.export(temp_path, "SQLite", append=True)
+
+        # check result
+        ds = gdal.OpenEx(temp_path, gdal.OF_VECTOR)
+        assert ds.GetLayerCount() == len(files)
+        for idx in range(ds.GetLayerCount()):
+            lyr = ds.GetLayer(idx)
+            assert lyr.GetFeatureCount() == counts[lyr.GetName()]
+        ds.Close()

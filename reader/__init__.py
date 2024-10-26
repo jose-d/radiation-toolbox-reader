@@ -198,11 +198,12 @@ class ReaderBase(AbstractContextManager['ReaderBase']):
             for item in self:
                 fd.write(sep.join(map(str, item.values())) + os.linesep)
 
-    def export(self, filename, driver_name):
+    def export(self, filename, driver_name, append=False):
         """Export data using GDAL library.
 
         :param str filename: target file path
         :param str driver_name: GDAL driver to be used to export data
+        :param bool append: True to append new data to existing datasource otherwise overwrite data source if exists
         """
         if driver_name not in ("GPKG", "SQLite"):
             ReaderLogger.warning(f"GDAL driver {driver_name} is not supported. "
@@ -216,7 +217,15 @@ class ReaderBase(AbstractContextManager['ReaderBase']):
             raise ReaderExportError(f"Unknown GDAL driver {driver_name}")
         try:
             ReaderLogger.debug(f"Creating output file: {filename}")
-            ds = driver.CreateDataSource(filename)
+            if append is True:
+                if not Path(filename).exists():
+                    ds = driver.CreateDataSource(filename)
+                else:
+                    ds = gdal.OpenEx(filename, gdal.OF_VECTOR | gdal.OF_UPDATE)
+            else:
+                if Path(filename).exists():
+                    driver.DeleteDataSource(filename)
+                ds = driver.CreateDataSource(filename)
         except RuntimeError as e:
             raise ReaderExportError(f"{e}")
 
