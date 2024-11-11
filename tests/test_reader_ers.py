@@ -41,3 +41,7 @@ class TestReaderLog(TestReader):
         """Test GDAL-based export."""
         self._exportGDAL(Reader, self.dataFile, 'GPKG', 'gpkg')
         self._exportGDAL(Reader, self.dataFile, 'SQLite', 'db')
+
+    def test_006(self):
+        """Tests stats and count consistency."""
+        self._stats(Reader, self.dataFile)

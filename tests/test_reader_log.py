@@ -24,7 +24,7 @@ class TestReaderLog(TestReader):
         self._attributeDefs(Reader, self.dataFile, ref, args={"computed_attributes": False})
         ref += [
             'ader_microsvh', 'time_local', 'speed_kmph', 'dose_increment',
-            'time_cumulative', 'dose_cumulative'
+            'time_cumulative', 'dose_cumulative', 'dist_cumulative'
         ]
 
         self._attributeDefs(Reader, self.dataFile, ref, args={"computed_attributes": True})
@@ -58,7 +58,8 @@ class TestReaderLog(TestReader):
             ('speed_kmph', 0),
             ('dose_increment', 0),
             ('time_cumulative', '00:00:00'),
-            ('dose_cumulative', 0)
+            ('dose_cumulative', 0),
+            ('dist_cumulative', 0),
         ]))
         self._record(Reader, self.dataFile, ref, args={"computed_attributes": True})
         # check last item including computed attributes
@@ -84,7 +85,8 @@ class TestReaderLog(TestReader):
             'speed_kmph': 0.863856214386694,
             'dose_increment': 0.00024950099800399167,
             'time_cumulative': '01:18:34',
-            'dose_cumulative': 0.35262890884896525
+            'dose_cumulative': 0.35262890884896525,
+            'dist_cumulative': 3051.8665013830273,
         })
         self._record(Reader, self.dataFile, ref, args={"computed_attributes": True}, idx=self.ref_count-1)
 
@@ -98,19 +100,32 @@ class TestReaderLog(TestReader):
         self._exportGDAL(Reader, self.dataFile, 'SQLite', 'db')
 
     def test_006(self):
+        """Tests stats and count consistency."""
+        self._stats(Reader, self.dataFile)
+
+    def test_007(self):
         """Test export on multiple files."""
         counts = {}
+        driver_name = "SQLite"
         temp_path = f"{tempfile.mktemp()}.db"
         files = list(Path(self.dataFile).parent.glob("*.log"))
         for fn in files:
             with Reader(fn) as r:
                 counts[fn.stem] = r.count()
-                r.export(temp_path, "SQLite", append=True)
+                r.export(temp_path, driver_name, append=True)
 
         # check result
-        ds = gdal.OpenEx(temp_path, gdal.OF_VECTOR)
-        assert ds.GetLayerCount() == len(files)
+        ds = self._openDS(temp_path, driver_name)
+        ref_layer_count = len(files) if r.metadata is None else len(files) + 1
+
+        assert self._layerCount(ds) == ref_layer_count
         for idx in range(ds.GetLayerCount()):
+            if ds.IsLayerPrivate(idx) is True:
+                continue
+
             lyr = ds.GetLayer(idx)
-            assert lyr.GetFeatureCount() == counts[lyr.GetName()]
+            if lyr.GetName() == 'safecast_metadata':
+                assert lyr.GetFeatureCount() == len(files)
+            else:
+                assert lyr.GetFeatureCount() == counts[lyr.GetName()]
         ds.Close()

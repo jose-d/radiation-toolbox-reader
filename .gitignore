@@ -4,5 +4,6 @@ tests/__pycache__/
 site/
 *.egg-info/
 tests/data/sample.sqlite
+tests/data/sample.gpkg*
 docs/source/.ipynb_checkpoints/
 *~

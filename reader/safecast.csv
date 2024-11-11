@@ -21,3 +21,4 @@ speed_kmph;float;Speed (km/h);2
 dose_increment;float;Increment DOSE;2
 time_cumulative;str;Cumulative time;2
 dose_cumulative;float;Cumulative DOSE;2
+dist_cumulative;float;Cumulative distance;2

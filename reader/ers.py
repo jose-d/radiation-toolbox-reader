@@ -1,13 +1,22 @@
 from collections import OrderedDict
 
-from . import ReaderBase
+from . import RecordBase, ReaderBase
 from .exceptions import ReaderError
+
+class ERSRecord(RecordBase):
+    @property
+    def point(self):
+        """Get point coordinates.
+
+        :return tuple: point coordinates (x, y)
+        """
+        return (float(self['PE']), float(self['PN']))
 
 class ERSReader(ReaderBase):
     """ERS reader class.
     """
     def _next_data_item(self):
-        """Read next data item.
+        """Read next data record.
         """
         while True:
             line = self._fd.readline().rstrip()
@@ -15,25 +24,25 @@ class ERSReader(ReaderBase):
                 # EOF
                 return None
             if line.startswith('PA '):
-                item = OrderedDict()
+                record = ERSRecord()
                 for it in line.split(';'):
                     k, v = map(lambda x: x.strip(), it.strip().split(' ', 1))
                     if k == '#S':
                         # see https://gitlab.com/opengeolabs/qgis-radiation-toolbox-plugin/issues/41#note_137813150
                         idx = 1
                         for s_v in v.strip().split(' '):
-                            item['{}{}'.format(k, idx)] = s_v
+                            record['{}{}'.format(k, idx)] = s_v
                             idx += 1
                     else:
                         # https://gitlab.com/opengeolabs/qgis-radiation-toolbox-plugin/issues/38#note_153255013
                         if ',' in v and k == 'DHSR':
                             v = v.replace(',', '.')
-                        item[k] = self._attributes[k]['type'](v) if self._attributes else v
+                        record[k] = self._attributes[k]['type'](v) if self._attributes else v
 
-                return item
+                return record
 
     def count(self):
-        """Count data items.
+        """Count data records.
         """
         return self._count('PA ')
 
@@ -44,4 +53,3 @@ class ERSReader(ReaderBase):
 
         :return tuple: point coordinates (x, y)
         """
-        return (float(item['PE']), float(item['PN']))

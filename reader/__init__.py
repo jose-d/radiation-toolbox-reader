@@ -13,6 +13,15 @@ from .logger import ReaderLogger
 
 __version__ = "1.0.0"
 
+class RecordBase(OrderedDict):
+    @property
+    def point(self):
+        """Get point coordinates.
+
+        :return tuple: point coordinates (x, y)
+        """
+        raise NotImplementedError()
+
 class ReaderBase(AbstractContextManager['ReaderBase']):
     """Base reader class.
     """
@@ -32,11 +41,27 @@ class ReaderBase(AbstractContextManager['ReaderBase']):
         self.computed_attributes = computed_attributes
         self._attributes = self.attributeDefs()
 
+        # statistics
+        self._stats = None
+
     def __del__(self):
         """Destructor, close input file.
         """
         if self._fd:
             self._fd.close()
+
+    @property
+    def metadata(self):
+        return {}
+
+    def stats(self):
+        """Compute statistics.
+
+        :return dict: stats
+        """
+        if self._stats is None:
+            self._stats = {'count': self.count()}
+        return self._stats
 
     def __enter__(self):
         """Enter context manager protocol.
@@ -54,21 +79,12 @@ class ReaderBase(AbstractContextManager['ReaderBase']):
         super().__exit__(exc_type, exc_val, exc_tb)
 
     def count(self):
-        """Count data items.
-        """
-        raise NotImplementedError()
-
-    def _getPoint(self, item):
-        """Get point coordinates.
-
-        :param OrderedDict: item
-
-        :return tuple: point coordinates (x, y)
+        """Count data records.
         """
         raise NotImplementedError()
 
     def _next_data_item(self):
-        """Read next data item.
+        """Read next data record.
         """
         raise NotImplementedError()
 
@@ -81,11 +97,11 @@ class ReaderBase(AbstractContextManager['ReaderBase']):
     def __next__(self):
         """Return next record.
         """
-        item = self._next_data_item()
-        if item is None:
+        record = self._next_data_item()
+        if record is None:
             raise StopIteration
 
-        return item
+        return record
 
     def reset(self):
         """Reset reading.
@@ -93,7 +109,7 @@ class ReaderBase(AbstractContextManager['ReaderBase']):
         self._fd.seek(0)
 
     def _count(self, counter):
-        """Count data items.
+        """Count data records.
 
         Inspired by http://stackoverflow.com/questions/845058/how-to-get-line-count-cheaply-in-python.
 
@@ -143,9 +159,9 @@ class ReaderBase(AbstractContextManager['ReaderBase']):
         if self._scan_attributes:
             # limit attributes based on input file (first feature) - ERS/PEI format specific
             self.reset()
-            item = self._next_data_item()
+            record = self._next_data_item()
             self.reset()
-            for name in item.keys():
+            for name in record.keys():
                 # first try full name match
                 found = False
                 for row in def_attrbs:
@@ -195,8 +211,8 @@ class ReaderBase(AbstractContextManager['ReaderBase']):
             # header
             fd.write(sep.join(self.attributeDefs().keys()) + os.linesep)
             # body
-            for item in self:
-                fd.write(sep.join(map(str, item.values())) + os.linesep)
+            for record in self:
+                fd.write(sep.join(map(str, record.values())) + os.linesep)
 
     def export(self, filename, driver_name, append=False):
         """Export data using GDAL library.
@@ -254,10 +270,41 @@ class ReaderBase(AbstractContextManager['ReaderBase']):
             for idx, value in enumerate(rec.values()):
                 feature.SetField(field_names[idx], value)
             geometry = ogr.Geometry(ogr.wkbPoint)
-            geometry.AddPoint_2D(*self._getPoint(rec))
+            geometry.AddPoint_2D(*rec.point)
             feature.SetGeometry(geometry)
             layer.CreateFeature(feature)
             feature = None
 
+        # write metadata
+        meta = self.metadata
+        if meta:
+            self._writeMetadata(ds, meta)
+
+        ds.FlushCache()
+
         self.reset()
         ds.Close()
+
+    def _writeMetadata(self, ds, metadata):
+        """Write metadata table.
+
+        :param GDALDataSource ds: target data source
+        :param dict metadata: metadata dictionary
+        """
+        from osgeo import ogr
+
+        layer_name = metadata['table']
+        layer = ds.GetLayerByName(layer_name)
+        if layer is None:
+            layer = ds.CreateLayer(layer_name, geom_type=ogr.wkbNone)
+            if 'columns' in metadata:
+                for key in metadata['columns']:
+                    field = ogr.FieldDefn(key, ogr.OFTString)
+                    layer.CreateField(field)
+
+        layer_defn = layer.GetLayerDefn()
+        feat = ogr.Feature(layer_defn)
+        for key, value in metadata['columns'].items():
+            feat.SetField(key, value)
+        layer.CreateFeature(feat)
+        feat = None

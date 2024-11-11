@@ -11,15 +11,43 @@ from builtins import object
 import os
 import csv
 import time
-from collections import OrderedDict
+from pathlib import Path
 from datetime import datetime, timedelta
+from collections import OrderedDict
 
 import pyproj
 from dateutil import tz
 
 from .exceptions import ReaderError
 from .logger import ReaderLogger
-from . import ReaderBase
+from . import RecordBase, ReaderBase
+
+class SafecastRecord(RecordBase):
+    @staticmethod
+    def _coordsFloat(coord, ne):
+        """Convert coordinates to DMS.
+
+        :param coord: coordinates as a string
+        :param ne: longitude/latitude indicator
+
+        :return: coordinate value
+        """
+        ddmm, s = coord.split('.', 1)
+        val = int(ddmm[:-2]) + int(ddmm[-2:])/60. + float('0.'+s)/60.
+        if ne in ('S', 'W'):
+            val *= -1
+        return val
+
+    @property
+    def point(self):
+        """Get point coordinates.
+
+        :return tuple: point coordinates (x, y)
+        """
+        return (
+            self._coordsFloat(self['long_deg'], self['east_west']),
+            self._coordsFloat(self['lat_deg'], self['hemisphere'])
+        )
 
 class SafecastReader(ReaderBase):
     """Reader class for reading Safecast format (LOG files).
@@ -47,11 +75,23 @@ class SafecastReader(ReaderBase):
         except (IOError, ReaderError) as e:
             raise ReaderError("{}".format(e))
 
-        self._items = None
-        self._item_idx = -1
+        self._records = None
+        self._record_idx = -1
+
+    @property
+    def metadata(self):
+        return {
+            'table': 'safecast_metadata',
+            'columns': {
+                'filename': Path(self._filepath).name,
+                'format': self.format_version,
+                'deadtime': self.deadtime,
+                'callibration_coefficient': self.callibration_coefficient
+            }
+        }
 
     def _next_data_item_(self):
-        """Read next data item.
+        """Read next data record.
         """
         while True:
             line = self._fd.readline().rstrip(os.linesep)
@@ -59,7 +99,7 @@ class SafecastReader(ReaderBase):
                 # EOF
                 return None
 
-            item = OrderedDict()
+            record = SafecastRecord()
             if line.startswith('#'):
                 continue
 
@@ -70,38 +110,38 @@ class SafecastReader(ReaderBase):
             attrs = list(self._attributes.keys())
             for idx in range(len(data)):
                 k = attrs[idx]
-                item[k] = self._attributes[k]['type'](data[idx]) if self._attributes else data[idx]
+                record[k] = self._attributes[k]['type'](data[idx]) if self._attributes else data[idx]
 
             if self.computed_attributes:
                 for k, v in self._attributes.items():
-                    if v['computed'] == 1: # may be computed per item
-                        item[k] = self._computeAttribute(k, item)
+                    if v['computed'] == 1: # may be computed per record
+                        record[k] = self._computeAttribute(k, record)
 
-            return item
+            return record
 
     def _next_data_item(self):
-        """Read next data item.
+        """Read next data record.
         """
         if self.computed_attributes:
-            # all items must be loaded into memory because of attributes
+            # all records must be loaded into memory because of attributes
             # that can only be calculated at the end
-            if self._items is None:
-                self._items = []
+            if self._records is None:
+                self._records = []
                 while True:
-                    item = self._next_data_item_()
-                    if item is None:
+                    record = self._next_data_item_()
+                    if record is None:
                         break # EOF
-                    self._items.append(item)
+                    self._records.append(record)
 
-                self._computeAttributes(self._items)
+                self.computeAttributes(self._records)
 
-            self._item_idx += 1
-            return self._items[self._item_idx] if self._item_idx < len(self._items) else None
+            self._record_idx += 1
+            return self._records[self._record_idx] if self._record_idx < len(self._records) else None
         else:
             return self._next_data_item_()
 
     def _readHeader(self):
-        """Read LOG header and store metadata items.
+        """Read LOG header and store metadata records.
         """
         # TODO: be less pedantic
         def _read_header_line(line, header_line):
@@ -146,36 +186,36 @@ class SafecastReader(ReaderBase):
     def reset(self):
         """Reset reading.
         """
-        self._items = None
-        self._item_idx = -1
+        # self._records = None
+        self._record_idx = -1
         super().reset()
 
     def count(self):
-        """Get data item count.
+        """Get data record count.
         """
         return self.nlines
 
-    def _computeAttribute(self, attribute, item):
-        """Compute attribute for single item.
+    def _computeAttribute(self, attribute, record):
+        """Compute attribute for single record.
 
         :param str attribute: attribute name to be computed
-        :param OrderedDict item: record item
+        :param SafecastRecord record: record item
 
         :return computed value
         """
         value = None
         if attribute == "ader_microsvh":
             try:
-                if item['pulses5s'] > 0:
-                    value = item['pulses5s'] * 12
+                if record['pulses5s'] > 0:
+                    value = record['pulses5s'] * 12
                 else:
-                    value = item['cpm']
+                    value = record['cpm']
                 value *= self.callibration_coefficient
             except ValueError:
                 value = -1
         elif attribute == "time_local":
             try:
-                value = self._datetime2localtime(item['date_time'])
+                value = self._datetime2localtime(record['date_time'])
             except ValueError:
                 value = "unknown"
 
@@ -311,39 +351,16 @@ class SafecastReader(ReaderBase):
 
         return distance
 
-    @staticmethod
-    def _coordsFloat(coord, ne):
-        """Convert coordinates to DMS.
+    def computeAttributes(self, records):
+        """Compute attributes.
 
-        :param coord: coordinates as a string
-        :param ne: longitude/latitude indicator
-
-        :return: coordinate value
+        :param list records: list of SafecastRecords
         """
-        ddmm, s = coord.split('.', 1)
-        val = int(ddmm[:-2]) + int(ddmm[-2:])/60. + float('0.'+s)/60.
-        if ne in ('S', 'W'):
-            val *= -1
-        return val
-
-    def _getPoint(self, item):
-        """Get point coordinates.
-
-        :param OrderedDict: item
-
-        :return tuple: point coordinates (x, y)
-        """
-        return (
-            self._coordsFloat(item['long_deg'], item['east_west']),
-            self._coordsFloat(item['lat_deg'], item['hemisphere'])
-        )
-
-    def _computeAttributes(self, items):
         # get first valid datetime
         first_valid_date = None
-        for item in items:
-            if self._checkDate(item["date_time"]):
-                first_valid_date = datetime.strptime(item["date_time"], "%Y-%m-%dT%H:%M:%SZ").date()
+        for record in records:
+            if self._checkDate(record["date_time"]):
+                first_valid_date = datetime.strptime(record["date_time"], "%Y-%m-%dT%H:%M:%SZ").date()
                 break
         if first_valid_date is None:
             ReaderLogger.warning("No valid date found. Unable to fix datetime.")
@@ -359,16 +376,16 @@ class SafecastReader(ReaderBase):
         speed = 0
         prev_date_time = None
         prev_point = None
-        prev = None  # previous item
+        prev = None  # previous record
         dose_inc = 0
         start = time.perf_counter()
-        for item in items:
+        for record in records:
             # fix date if invalid
-            date_time, newdt = self._validateDate(item["date_time"], prev_date_time, first_valid_date)
+            date_time, newdt = self._validateDate(record["date_time"], prev_date_time, first_valid_date)
             # compute ader stats
-            if ader_max is None or ader_max < item["ader_microsvh"]:
-                ader_max = item["ader_microsvh"]
-            ader_cum += item["ader_microsvh"]
+            if ader_max is None or ader_max < record["ader_microsvh"]:
+                ader_max = record["ader_microsvh"]
+            ader_cum += record["ader_microsvh"]
 
             # compute local time (from datetime)
             try:
@@ -377,14 +394,14 @@ class SafecastReader(ReaderBase):
                 time_local = self._layer.tr("unknown")
 
             # compute coordinates
-            point = self._getPoint(item)
+            point = record.point
             if prev is not None:
                 timediff = self._datetimediff(
                     prev_date_time,
                     date_time
                 ).total_seconds() / (60 * 60)
 
-                dose_inc = item["ader_microsvh"] * timediff
+                dose_inc = record["ader_microsvh"] * timediff
 
                 # speed
                 dist = self._distance(point, prev_point)
@@ -409,7 +426,7 @@ class SafecastReader(ReaderBase):
                 dose_cum += dose_inc
 
             # set previous feature for next run
-            prev = item
+            prev = record
             prev_date_time = date_time
             prev_point = point
 
@@ -418,15 +435,31 @@ class SafecastReader(ReaderBase):
                 ("dose_increment", dose_inc),
                 ("time_cumulative", self._td2str(timedelta(hours=time_cum))),
                 ("dose_cumulative", dose_cum),
+                ("dist_cumulative", dist_cum),
             ])
             if newdt:
                 attrs["date_time"] = date_time
 
-            # update items
-            item.update(attrs)
+            # update records
+            record.update(attrs)
 
             for k, v in self._attributes.items():
                 if v['computed'] > 1 and k not in attrs:
                     raise ReaderError(f"Attribute {k} not computed")
 
             count += 1
+
+        # update statistics
+        self._stats = {
+            'count' : count,
+            'radiation': {
+                'max' : ader_max,
+                'avg' : ader_cum / count,
+                'total': dose_cum,
+            },
+            'route': {
+                'speed' : speed_cum / count,
+                'time': self._td2str(timedelta(hours=time_cum)),
+                'distance' : dist_cum,
+            }
+        }

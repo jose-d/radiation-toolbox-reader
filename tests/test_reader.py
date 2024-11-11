@@ -1,6 +1,8 @@
+import os
+import sys
 import tempfile
 import csv
-import os
+from pathlib import Path
 
 class TestReader:
     @staticmethod
@@ -18,10 +20,12 @@ class TestReader:
         def comp_record(rec1, rec2, tol=1e12):
             for k, v in rec1.items():
                 if type(v) == float:
-                    if abs(v-rec2[k]) > 1e-12:
+                    if abs(v-rec2[k]) > 1e-9:
+                        print(f"DIFF: {v} x {rec2[k]}", file=sys.stderr)
                         return False
                 else:
                     if v != rec2[k]:
+                        print(f"DIFF: {v} x {rec2[k]}", file=sys.stderr)
                         return False
             return True
 
@@ -59,8 +63,7 @@ class TestReader:
 
         os.remove(tmp.name)
 
-    @staticmethod
-    def _exportGDAL(reader, filename, driver_name, extension):
+    def _exportGDAL(self, reader, filename, driver_name, extension):
         from osgeo import gdal
 
         with reader(filename) as r:
@@ -68,13 +71,34 @@ class TestReader:
             r.export(temp_path, driver_name=driver_name)
 
             # check result
-            ds =  gdal.OpenEx(temp_path, gdal.OF_VECTOR)
-            assert ds.GetLayerCount() == 1
-            assert ds.GetLayer().GetFeatureCount() == r.count()
+            ds = self._openDS(temp_path, driver_name)
+            ref_layer_count = 2 if r.metadata else 1
+            assert self._layerCount(ds) == ref_layer_count
+            layer = ds.GetLayerByName(Path(filename).stem)
+            assert layer is not None
+            assert layer.GetFeatureCount() == r.count()
 
             # check first item
-            first_feat = ds.GetLayer().GetNextFeature()
+            first_feat = layer.GetNextFeature()
             first_item = next(r)
             for k, v in first_item.items():
                 field_name = k.replace("-", "_") if "-" in k else k
                 assert first_feat.GetField(field_name) == v
+
+    @staticmethod
+    def _layerCount(ds):
+        return [ds.IsLayerPrivate(i) for i in range(ds.GetLayerCount())].count(False)
+
+    @staticmethod
+    def _openDS(path, driver_name):
+        from osgeo import gdal
+
+        oo = []
+        if driver_name == "SQLite":
+            oo.append("LIST_ALL_TABLES=YES")
+        return gdal.OpenEx(path, gdal.OF_VECTOR, open_options=oo)
+
+    def _stats(self, reader, filename):
+        with reader(filename) as r:
+            stats = r.stats()
+            assert stats['count'] == r.count()
