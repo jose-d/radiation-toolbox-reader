@@ -2,7 +2,10 @@ import os
 import sys
 import tempfile
 import csv
+import pytest
 from pathlib import Path
+
+from reader.exceptions import ReaderExportDuplication
 
 class TestReader:
     @staticmethod
@@ -63,7 +66,7 @@ class TestReader:
 
         os.remove(tmp.name)
 
-    def _exportGDAL(self, reader, filename, driver_name, extension):
+    def _exportGDAL(self, reader, filename, driver_name, extension, repeat=False):
         from osgeo import gdal
 
         with reader(filename) as r:
@@ -84,6 +87,10 @@ class TestReader:
             for k, v in first_item.items():
                 field_name = k.replace("-", "_") if "-" in k else k
                 assert first_feat.GetField(field_name) == v
+
+            if repeat:
+                with pytest.raises(ReaderExportDuplication):
+                    r.export(temp_path, driver_name=driver_name)
 
     @staticmethod
     def _layerCount(ds):

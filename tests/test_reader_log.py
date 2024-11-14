@@ -99,12 +99,14 @@ class TestReaderLog(TestReader):
         self._exportGDAL(Reader, self.dataFile, 'GPKG', 'gpkg')
         self._exportGDAL(Reader, self.dataFile, 'SQLite', 'db')
 
+        # check duplication
+        self._exportGDAL(Reader, self.dataFile, 'SQLite', 'db', repeat=True)
+
     def test_006(self):
         """Tests stats and count consistency."""
         self._stats(Reader, self.dataFile)
 
-    def test_007(self):
-        """Test export on multiple files."""
+    def _import_multiple_files(self, single_table):
         counts = {}
         driver_name = "SQLite"
         temp_path = f"{tempfile.mktemp()}.db"
@@ -112,11 +114,12 @@ class TestReaderLog(TestReader):
         for fn in files:
             with Reader(fn) as r:
                 counts[fn.stem] = r.count()
-                r.export(temp_path, driver_name, append=True)
+                r.export(temp_path, driver_name, single_table=single_table)
 
         # check result
         ds = self._openDS(temp_path, driver_name)
-        ref_layer_count = len(files) if r.metadata is None else len(files) + 1
+        layer_count = len(files) if single_table is None else 1
+        ref_layer_count = layer_count if r.metadata is None else layer_count + 1
 
         assert self._layerCount(ds) == ref_layer_count
         for idx in range(ds.GetLayerCount()):
@@ -127,5 +130,14 @@ class TestReaderLog(TestReader):
             if lyr.GetName() == 'safecast_metadata':
                 assert lyr.GetFeatureCount() == len(files)
             else:
-                assert lyr.GetFeatureCount() == counts[lyr.GetName()]
+                if single_table is not None:
+                    assert lyr.GetName() == single_table
+                    assert lyr.GetFeatureCount() == sum(list(counts.values()))
+                else:
+                    assert lyr.GetFeatureCount() == counts[lyr.GetName()]
         ds.Close()
+
+    def test_007(self):
+        """Test export on multiple files."""
+        self._import_multiple_files(single_table=None)
+        self._import_multiple_files(single_table='data')

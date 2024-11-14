@@ -8,7 +8,7 @@ from contextlib import AbstractContextManager
 from types import TracebackType
 from collections import OrderedDict
 
-from .exceptions import ReaderError, ReaderExportError
+from .exceptions import ReaderError, ReaderExportError, ReaderExportDuplication
 from .logger import ReaderLogger
 
 __version__ = "1.0.0"
@@ -214,12 +214,13 @@ class ReaderBase(AbstractContextManager['ReaderBase']):
             for record in self:
                 fd.write(sep.join(map(str, record.values())) + os.linesep)
 
-    def export(self, filename, driver_name, append=False):
+    def export(self, filename, driver_name, overwrite=False, single_table=None):
         """Export data using GDAL library.
 
         :param str filename: target file path
         :param str driver_name: GDAL driver to be used to export data
-        :param bool append: True to append new data to existing datasource otherwise overwrite data source if exists
+        :param bool overwrite: True to overwrite existing target data source
+        :param str single_table: name of table where to insert data records from multiple imported files or None (create a new table for each imported file)
         """
         if driver_name not in ("GPKG", "SQLite"):
             ReaderLogger.warning(f"GDAL driver {driver_name} is not supported. "
@@ -231,37 +232,47 @@ class ReaderBase(AbstractContextManager['ReaderBase']):
         driver = ogr.GetDriverByName(driver_name)
         if driver is None:
             raise ReaderExportError(f"Unknown GDAL driver {driver_name}")
+
+        if overwrite is True and Path(filename).exists():
+            driver.DeleteDataSource(filename)
+
         try:
             ReaderLogger.debug(f"Creating output file: {filename}")
-            if append is True:
-                if not Path(filename).exists():
-                    ds = driver.CreateDataSource(filename)
-                else:
-                    ds = gdal.OpenEx(filename, gdal.OF_VECTOR | gdal.OF_UPDATE)
-            else:
-                if Path(filename).exists():
-                    driver.DeleteDataSource(filename)
+            if not Path(filename).exists():
                 ds = driver.CreateDataSource(filename)
+            else:
+                ds = gdal.OpenEx(filename, gdal.OF_VECTOR | gdal.OF_UPDATE)
         except RuntimeError as e:
             raise ReaderExportError(f"{e}")
 
-        # create layer
-        layer_name = Path(self._filepath).stem
-        srs = osr.SpatialReference()
-        srs.ImportFromEPSG(4326)
-        layer = ds.CreateLayer(layer_name, srs, geom_type=ogr.wkbPoint)
-
-        # create fields
-        field_types = {
+        # collect fields
+        field_names = []
+        field_types = []
+        map_types = {
             int: ogr.OFTInteger,
             float: ogr.OFTReal,
             str: ogr.OFTString,
         }
-        field_names = []
         for k, v in self.attributeDefs().items():
             field_name = k.replace("-", "_") if "-" in k else k
-            layer.CreateField(ogr.FieldDefn(field_name, field_types[v['type']]))
             field_names.append(field_name)
+            field_types.append(map_types[v['type']])
+
+        layer_name = Path(self._filepath).stem if single_table is None else single_table
+        layer = ds.GetLayerByName(layer_name)
+        if layer is None:
+            # create layer
+            srs = osr.SpatialReference()
+            srs.ImportFromEPSG(4326)
+            layer = ds.CreateLayer(layer_name, srs, geom_type=ogr.wkbPoint)
+
+            # create fields
+            for field_name, field_type in zip(field_names, field_types):
+                layer.CreateField(ogr.FieldDefn(field_name, field_type))
+        else:
+            if single_table is None:
+                # layer already exists
+                raise ReaderExportDuplication(layer_name)
 
         # write features
         layer_defn = layer.GetLayerDefn()
