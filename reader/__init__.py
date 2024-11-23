@@ -2,11 +2,11 @@ import os
 import inspect
 import csv
 import copy
-
 from pathlib import Path
 from contextlib import AbstractContextManager
 from types import TracebackType
 from collections import OrderedDict
+from enum import Enum
 
 from .exceptions import ReaderError, ReaderExportError, ReaderExportDuplication
 from .logger import ReaderLogger
@@ -22,12 +22,17 @@ class RecordBase(OrderedDict):
         """
         raise NotImplementedError()
 
+class ComputedAttributes(Enum):
+    No = 0
+    PerRecordOnly = 1
+    All = 2
+
 class ReaderBase(AbstractContextManager['ReaderBase']):
     """Base reader class.
     """
     _scan_attributes = True
 
-    def __init__(self, filepath, rb=False, computed_attributes=False):
+    def __init__(self, filepath, rb=False, computed_attributes=ComputedAttributes.No):
         self._filepath = filepath
 
         try:
@@ -143,8 +148,9 @@ class ReaderBase(AbstractContextManager['ReaderBase']):
             if 'alias' in row and row['alias']:
                 attrb[row['attribute']]['alias'] = row['alias'].replace('_', ' ')
             if 'computed' in row and row['computed']:
-                computed = attrb[row['attribute']]['computed'] = int(row['computed'])
-                if self.computed_attributes is False and computed > 0:
+                computed = attrb[row['attribute']]['computed'] = ComputedAttributes(int(row['computed']))
+                if computed.value > 0 and (self.computed_attributes == ComputedAttributes.No or
+                                     computed.value > self.computed_attributes.value):
                     return {}
 
             return attrb

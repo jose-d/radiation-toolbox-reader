@@ -20,7 +20,7 @@ from dateutil import tz
 
 from .exceptions import ReaderError
 from .logger import ReaderLogger
-from . import RecordBase, ReaderBase
+from . import RecordBase, ReaderBase, ComputedAttributes
 
 class SafecastRecord(RecordBase):
     @staticmethod
@@ -48,19 +48,24 @@ class SafecastRecord(RecordBase):
             self._coordsFloat(self['long_deg'], self['east_west']),
             self._coordsFloat(self['lat_deg'], self['hemisphere'])
         )
-
 class SafecastReader(ReaderBase):
     """Reader class for reading Safecast format (LOG files).
     """
     _scan_attributes = False
 
-    def __init__(self, filepath, computed_attributes=False):
+    def __init__(self, filepath, computed_attributes=ComputedAttributes.No):
         """Constructor.
 
         Check format, version and deadtime.
+
+        Computed attributes levels:
+
+        - ComputedAttributes.No do not compute any attributes
+        - ComputedAttributes.PerRecordOnly compute attributes only per record
+        - ComputedAttributes.All compute all attributes
         
         :param str filepath: file name to be imported
-        :param bool compute_attributes: compute additional attributes
+        :param bool compute_attributes: level of computed attributes
         """
         self.format_version = None
         self.deadtime = None
@@ -112,9 +117,9 @@ class SafecastReader(ReaderBase):
                 k = attrs[idx]
                 record[k] = self._attributes[k]['type'](data[idx]) if self._attributes else data[idx]
 
-            if self.computed_attributes:
+            if self.computed_attributes.value >= ComputedAttributes.PerRecordOnly.value:
                 for k, v in self._attributes.items():
-                    if v['computed'] == 1: # may be computed per record
+                    if v['computed'] == ComputedAttributes.PerRecordOnly: # may be computed per record
                         record[k] = self._computeAttribute(k, record)
 
             return record
@@ -122,7 +127,7 @@ class SafecastReader(ReaderBase):
     def _next_data_item(self):
         """Read next data record.
         """
-        if self.computed_attributes:
+        if self.computed_attributes == ComputedAttributes.All:
             # all records must be loaded into memory because of attributes
             # that can only be calculated at the end
             if self._records is None:
@@ -444,7 +449,7 @@ class SafecastReader(ReaderBase):
             record.update(attrs)
 
             for k, v in self._attributes.items():
-                if v['computed'] > 1 and k not in attrs:
+                if v['computed'].value > ComputedAttributes.PerRecordOnly.value and k not in attrs:
                     raise ReaderError(f"Attribute {k} not computed")
 
             count += 1

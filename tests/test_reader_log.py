@@ -5,6 +5,7 @@ from pathlib import Path
 
 from osgeo import gdal
 
+from reader import ComputedAttributes
 from reader.safecast import SafecastReader as Reader
 from tests.test_reader import TestReader
 
@@ -21,13 +22,16 @@ class TestReaderLog(TestReader):
                'pulses_total', 'validity', 'lat_deg', 'hemisphere',
                'long_deg', 'east_west', 'altitude', 'gps_validity',
                'sat', 'hdop', 'checksum']
-        self._attributeDefs(Reader, self.dataFile, ref, args={"computed_attributes": False})
+        self._attributeDefs(Reader, self.dataFile, ref, args={"computed_attributes": ComputedAttributes.No})
+
+        ref += ['ader_microsvh', 'time_local']
+        self._attributeDefs(Reader, self.dataFile, ref, args={"computed_attributes": ComputedAttributes.PerRecordOnly})
+
         ref += [
-            'ader_microsvh', 'time_local', 'speed_kmph', 'dose_increment',
+            'speed_kmph', 'dose_increment',
             'time_cumulative', 'dose_cumulative', 'dist_cumulative'
         ]
-
-        self._attributeDefs(Reader, self.dataFile, ref, args={"computed_attributes": True})
+        self._attributeDefs(Reader, self.dataFile, ref, args={"computed_attributes": ComputedAttributes.All})
 
     def test_003(self):
         """Check selected records."""
@@ -50,18 +54,21 @@ class TestReaderLog(TestReader):
             'hdop': 151,
             'checksum': '*48'
         })
-        self._record(Reader, self.dataFile, ref, args={"computed_attributes": False})
+        self._record(Reader, self.dataFile, ref, args={"computed_attributes": ComputedAttributes.No})
         # check first item including computed attributes
         ref.update(OrderedDict([
             ('ader_microsvh', 0.0718562874251496),
             ('time_local', '14:00:36'),
+        ]))
+        self._record(Reader, self.dataFile, ref, args={"computed_attributes": ComputedAttributes.PerRecordOnly})
+        ref.update(OrderedDict([
             ('speed_kmph', 0),
             ('dose_increment', 0),
             ('time_cumulative', '00:00:00'),
             ('dose_cumulative', 0),
             ('dist_cumulative', 0),
         ]))
-        self._record(Reader, self.dataFile, ref, args={"computed_attributes": True})
+        self._record(Reader, self.dataFile, ref, args={"computed_attributes": ComputedAttributes.All})
         # check last item including computed attributes
         ref = OrderedDict({
             'device': '$BNRDD',
@@ -88,7 +95,7 @@ class TestReaderLog(TestReader):
             'dose_cumulative': 0.35262890884896525,
             'dist_cumulative': 3051.8665013830273,
         })
-        self._record(Reader, self.dataFile, ref, args={"computed_attributes": True}, idx=self.ref_count-1)
+        self._record(Reader, self.dataFile, ref, args={"computed_attributes": ComputedAttributes.All}, idx=self.ref_count-1)
 
     def test_004(self):
         """Test CSV export."""
