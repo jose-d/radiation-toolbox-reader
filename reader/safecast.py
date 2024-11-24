@@ -99,7 +99,7 @@ class SafecastReader(ReaderBase):
         """Read next data record.
         """
         while True:
-            line = self._fd.readline().rstrip(os.linesep)
+            line = self._fd.readline().strip()
             if not line:
                 # EOF
                 return None
@@ -150,20 +150,19 @@ class SafecastReader(ReaderBase):
         """
         # TODO: be less pedantic
         def _read_header_line(line, header_line):
-            line = line.rstrip('\r\n')
             if header_line == 0 and line != "# NEW LOG":
                 raise ReaderError("Unable to read '{}': "
-                                  "Invalid format".format(self.filename))
+                                  "Invalid format".format(self._filepath))
             elif header_line == 1 : # -> version
                 if not line.startswith('# format'):
                     raise ReaderError("Unable to read '{}': "
-                                      "Unknown version".format(self.filename))
+                                      "Unknown version".format(self._filepath))
                 else:
                     self.format_version = line.split('=')[1]
             elif header_line == 2: # -> deadtime
                 if not line.startswith('# deadtime'):
                     raise ReaderError("Unable to read '{}': "
-                                      "Unknown deadtime".format(self.filename))
+                                      "Unknown deadtime".format(self._filepath))
                 else:
                     self.deadtime = line.split('=')[1]
             elif header_line == 3:
@@ -176,6 +175,7 @@ class SafecastReader(ReaderBase):
         header_line = 0
         self.reset()
         for line in self._fd:
+            line = line.strip()
             if line.startswith('#'):
                 _read_header_line(line, header_line)
                 header_line += 1
