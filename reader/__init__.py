@@ -232,24 +232,33 @@ class ReaderBase(AbstractContextManager['ReaderBase']):
             ReaderLogger.warning(f"GDAL driver {driver_name} is not supported. "
                                  "Its functionality is not guaranteed.")
 
-        from osgeo import gdal, ogr, osr
+        from osgeo import gdal
         gdal.UseExceptions()
 
-        driver = ogr.GetDriverByName(driver_name)
+        driver = gdal.GetDriverByName(driver_name)
         if driver is None:
             raise ReaderExportError(f"Unknown GDAL driver {driver_name}")
 
         if overwrite is True and Path(filename).exists():
-            driver.DeleteDataSource(filename)
-
+            driver.Delete(filename)
         try:
             ReaderLogger.debug(f"Creating output file: {filename}")
             if not Path(filename).exists():
-                ds = driver.CreateDataSource(filename)
+                ds = driver.Create(filename, 0, 0, 0, gdal.GDT_Unknown)
             else:
                 ds = gdal.OpenEx(filename, gdal.OF_VECTOR | gdal.OF_UPDATE)
         except RuntimeError as e:
             raise ReaderExportError(f"{e}")
+
+        self._export(ds, single_table)
+
+    def _export(self, ds, single_table=None):
+        """Export data using GDAL library.
+
+        :param GDALDataset ds: target GDAL dataset
+        :param str single_table: name of table where to insert data records from multiple imported files or None (create a new table for each imported file)
+        """
+        from osgeo import ogr, osr
 
         # collect fields
         field_names = []
@@ -285,7 +294,7 @@ class ReaderBase(AbstractContextManager['ReaderBase']):
         for rec in self:
             feature = ogr.Feature(layer_defn)
             for idx, value in enumerate(rec.values()):
-                feature.SetField(field_names[idx], value)
+                feature.SetField(idx, value)
             geometry = ogr.Geometry(ogr.wkbPoint)
             geometry.AddPoint_2D(*rec.point)
             feature.SetGeometry(geometry)
@@ -300,7 +309,23 @@ class ReaderBase(AbstractContextManager['ReaderBase']):
         ds.FlushCache()
 
         self.reset()
-        ds.Close()
+        if ds.GetDriver().ShortName != "Memory":
+            ds.Close()
+
+    def export_memory(self, ds, single_table=None):
+        """Export data into memory using GDAL library.
+
+        :param GDALDataset ds: target GDAL dataset or None to create a new dataset
+        :param str single_table: name of table where to insert data records from multiple imported files or None (create a new table for each imported file)
+        """
+        from osgeo import gdal
+        if ds is None:
+            driver = gdal.GetDriverByName('Memory')
+            ds = driver.Create('', 0, 0, 0, gdal.GDT_Unknown)
+
+        self._export(ds, single_table)
+
+        return ds
 
     def _writeMetadata(self, ds, metadata):
         """Write metadata table.

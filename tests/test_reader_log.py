@@ -118,10 +118,12 @@ class TestReaderLog(TestReader):
         driver_name = "SQLite"
         temp_path = f"{tempfile.mktemp()}.db"
         files = list(Path(self.dataFile).parent.glob("*.log"))
+        ds = None
         for fn in files:
             with Reader(fn) as r:
                 counts[fn.stem] = r.count()
-                r.export(temp_path, driver_name, single_table=single_table)
+                ds = r.export_memory(ds, single_table=single_table)
+        gdal.VectorTranslate(temp_path, ds, format=driver_name)
 
         # check result
         ds = self._openDS(temp_path, driver_name)

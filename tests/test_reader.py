@@ -72,6 +72,7 @@ class TestReader:
         with reader(filename) as r:
             temp_path = f"{tempfile.mktemp()}.{extension}"
             r.export(temp_path, driver_name=driver_name)
+            r.export(temp_path, driver_name=driver_name, overwrite=True)
 
             # check result
             ds = self._openDS(temp_path, driver_name)
