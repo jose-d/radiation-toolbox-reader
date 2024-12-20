@@ -11,7 +11,6 @@ from builtins import object
 import os
 import csv
 import time
-from pathlib import Path
 from datetime import datetime, timedelta
 from collections import OrderedDict
 
@@ -88,7 +87,7 @@ class SafecastReader(ReaderBase):
         return {
             'table': 'safecast_metadata',
             'columns': {
-                'filename': Path(self._filepath).name,
+                'filename': self._filepath.name,
                 'format': self.format_version,
                 'deadtime': self.deadtime,
                 'callibration_coefficient': self.callibration_coefficient
@@ -109,6 +108,9 @@ class SafecastReader(ReaderBase):
                 continue
 
             data = list(csv.reader([line]))[0]
+            if len(data)+1 != self._num_attributes_read:
+                ReaderLogger.warning(f"Invalid record skipped (file {self._filepath.name}): {line}")
+                continue
             last_item = data[-1].split('*')
             data[-1] = last_item[0]
             data.append('*' + last_item[1])

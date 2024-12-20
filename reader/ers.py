@@ -39,6 +39,10 @@ class ERSReader(ReaderBase):
                             v = v.replace(',', '.')
                         record[k] = self._attributes[k]['type'](v) if self._attributes else v
 
+                if hasattr(self, "_num_attributes_read") and len(record.keys()) != self._num_attributes_read:
+                    ReaderLogger.warning(f"Invalid record skipped (file {self._filepath.name}): {line}")
+                    continue
+
                 return record
 
     def count(self):

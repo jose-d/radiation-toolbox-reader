@@ -33,7 +33,7 @@ class ReaderBase(AbstractContextManager['ReaderBase']):
     _scan_attributes = True
 
     def __init__(self, filepath, rb=False, computed_attributes=ComputedAttributes.No):
-        self._filepath = filepath
+        self._filepath = Path(filepath)
 
         try:
             flag = 'rb' if rb else 'r'
@@ -45,6 +45,9 @@ class ReaderBase(AbstractContextManager['ReaderBase']):
         self._attributes = None
         self.computed_attributes = computed_attributes
         self._attributes = self.attributeDefs()
+        self._num_attributes_read = sum(
+            1 for attr in self._attributes.values() if attr['computed'] == ComputedAttributes.No
+        )
 
         # statistics
         self._stats = None
@@ -142,7 +145,9 @@ class ReaderBase(AbstractContextManager['ReaderBase']):
         def addAttribute(row):
             attrb = {
                 row['attribute']: {
-                    "type" : eval(row['type'])
+                    "type" : eval(row['type']),
+                    "alias": None,
+                    "computed": ComputedAttributes.No
                 }
             }
             if 'alias' in row and row['alias']:
