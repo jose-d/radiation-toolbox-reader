@@ -74,8 +74,7 @@ class SafecastReader(ReaderBase):
 
         try:
             super().__init__(filepath, computed_attributes=computed_attributes)
-            self.nlines = self._count('\n')
-            self.nlines -= self._readHeader()
+            self.nlines = self._count('$')
         except (IOError, ReaderError) as e:
             raise ReaderError("{}".format(e))
 
@@ -152,17 +151,18 @@ class SafecastReader(ReaderBase):
         """
         # TODO: be less pedantic
         def _read_header_line(line, header_line):
-            if header_line == 0 and line != "# NEW LOG":
+            line = line[1:].strip()
+            if header_line == 0 and line != "NEW LOG":
                 raise ReaderError("Unable to read '{}': "
                                   "Invalid format".format(self._filepath))
             elif header_line == 1 : # -> version
-                if not line.startswith('# format'):
+                if not line.startswith('format'):
                     raise ReaderError("Unable to read '{}': "
                                       "Unknown version".format(self._filepath))
                 else:
                     self.format_version = line.split('=')[1]
             elif header_line == 2: # -> deadtime
-                if not line.startswith('# deadtime'):
+                if not line.startswith('deadtime'):
                     raise ReaderError("Unable to read '{}': "
                                       "Unknown deadtime".format(self._filepath))
                 else:
