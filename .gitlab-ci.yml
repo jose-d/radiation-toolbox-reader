@@ -1,6 +1,6 @@
 image: python:3.12-alpine
 
-run-tests:
+run_tests:
   stage: test
   script:
   - apk add proj proj-dev proj-util gcc musl-dev tzdata gdal gdal-dev g++
@@ -9,7 +9,7 @@ run-tests:
   - pip install -r requirements.txt
   - python3 -m pytest tests/test_reader_log.py tests/test_reader_ers.py
 
-build-pages:
+build_pages:
   stage: test
   script:
   - apk add pandoc
@@ -20,7 +20,7 @@ build-pages:
   except:
   - master
 
-deploy-pages:
+pages:
   stage: deploy
   script:
   - apk add pandoc    
