@@ -11,7 +11,7 @@ from builtins import object
 import os
 import csv
 import time
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 from collections import OrderedDict
 
 import pyproj
@@ -389,6 +389,7 @@ class SafecastReader(ReaderBase):
         for record in records:
             # fix date if invalid
             date_time, newdt = self._validateDate(record["date_time"], prev_date_time, first_valid_date)
+
             # compute ader stats
             if ader_max is None or ader_max < record["ader_microsvh"]:
                 ader_max = record["ader_microsvh"]
@@ -398,7 +399,7 @@ class SafecastReader(ReaderBase):
             try:
                 time_local = self._datetime2localtime(date_time)
             except ValueError:
-                time_local = self._layer.tr("unknown")
+                time_local = "unknown"
 
             # compute coordinates
             point = record.point

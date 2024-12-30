@@ -150,3 +150,33 @@ class TestReaderLog(TestReader):
         """Test export on multiple files."""
         self._import_multiple_files(single_table=None)
         self._import_multiple_files(single_table='data')
+
+    def test_008(self):
+        """Test invalid date."""
+        ref = OrderedDict({
+            'device': '$CZRDD',
+            'device_id': '0073',
+            'date_time': '2024-08-19T05:35:34Z',
+            'cpm': 41,
+            'pulses5s': 3,
+            'pulses_total': 1329,
+            'validity': 'A',
+            'lat_deg': '4923.9780',
+            'hemisphere': 'N',
+            'long_deg': '01316.7036',
+            'east_west': 'E',
+            'altitude': 413.18,
+            'gps_validity': 'A',
+            'sat': 20,
+            'hdop': 69,
+            'checksum': '*54',
+            'ader_microsvh': 0.1077844311377244,
+            'time_local': 'unknown',
+            'speed_kmph': 3.5328649782013257,
+            'dose_increment': 8.9820359281437e-05,
+            'time_cumulative': '00:00:03',
+            'dose_cumulative': 8.9820359281437e-05,
+            'dist_cumulative': 2.9440541485011047
+        })
+        self._record(Reader, Path(self.dataFile).parent / "sample_1.log",
+                     ref, args={"computed_attributes": ComputedAttributes.All}, idx=1)
