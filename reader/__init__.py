@@ -77,11 +77,7 @@ class ReaderBase(AbstractContextManager['ReaderBase']):
         super().__enter__()
         return self
 
-    def __exit__(self,
-                 exc_type: None | type[BaseException],
-                 exc_val: None | BaseException,
-                 exc_tb: None | TracebackType,
-                 /):
+    def __exit__(self, exc_type, exc_val, exc_tb):
         """Exit context manager protocol.
         """
         super().__exit__(exc_type, exc_val, exc_tb)

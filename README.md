@@ -8,6 +8,11 @@ Currently supported formats (reading only):
 - Safecast LOG
 - ERS
 
+## Requirements
+
+- Python >= 3.9
+- GDAL >= 3.7
+
 ## Funding
 
 [SURO](https://www.suro.cz/en), Czech Republic
