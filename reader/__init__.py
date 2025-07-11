@@ -11,7 +11,7 @@ from enum import Enum
 from .exceptions import ReaderError, ReaderExportError, ReaderExportDuplication
 from .logger import ReaderLogger
 
-__version__ = "1.0.0"
+__version__ = "1.1dev"
 
 class RecordBase(OrderedDict):
     @property
