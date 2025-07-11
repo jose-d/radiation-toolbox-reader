@@ -35,11 +35,9 @@ class ReaderBase(AbstractContextManager['ReaderBase']):
     def __init__(self, filepath, rb=False, computed_attributes=ComputedAttributes.No):
         self._filepath = Path(filepath)
 
-        try:
-            flag = 'rb' if rb else 'r'
-            self._fd = open(self._filepath, flag)
-        except IOError as e:
-            raise ReaderError("{}".format(e))
+        # open data input file
+        self._open_flag = 'rb' if rb else 'r'
+        self._fd = self._open()
 
         # attribute names & data types
         self._attributes = None
@@ -55,12 +53,24 @@ class ReaderBase(AbstractContextManager['ReaderBase']):
     def __del__(self):
         """Destructor, close input file.
         """
-        if self._fd:
-            self._fd.close()
+        self.release()
 
     @property
     def metadata(self):
         return {}
+
+    def _open(self):
+        """Open input file.
+
+        :return: file descriptor
+        """
+        if hasattr(self, "_fd") is False or self._fd is None:
+            try:
+                self._fd = open(self._filepath, self._open_flag)
+            except IOError as e:
+                raise ReaderError("{}".format(e))
+
+        return self._fd
 
     def stats(self):
         """Compute statistics.
@@ -110,7 +120,15 @@ class ReaderBase(AbstractContextManager['ReaderBase']):
     def reset(self):
         """Reset reading.
         """
+        self._fd = self._open()
         self._fd.seek(0)
+
+    def release(self):
+        """Release resources.
+        """
+        if self._fd is not None:
+            self._fd.close()
+            self._fd = None
 
     def _count(self, counter):
         """Count data records.
