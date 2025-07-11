@@ -13,7 +13,7 @@ Currently supported formats (reading only):
 
    from radiation_toolbox_reader.safecast import SafecastReader as Reader
    
-   with Reader(filename) as r:
+   with Reader("sample.log") as r:
        print(r.count())
 
 .. toctree::
