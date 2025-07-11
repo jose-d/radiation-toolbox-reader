@@ -11,7 +11,7 @@ Currently supported formats (reading only):
 
 .. code-block:: python
 
-   from reader.safecast import SafecastReader as Reader
+   from radiation_toolbox_reader.safecast import SafecastReader as Reader
    
    with Reader(filename) as r:
        print(r.count())
