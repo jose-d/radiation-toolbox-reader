@@ -13,6 +13,10 @@ Currently supported formats (reading only):
 - Python >= 3.9
 - GDAL >= 3.7
 
+## Installation
+
+- [PyPI](https://pypi.org/project/radiation-toolbox-reader/)
+
 ## Funding
 
 [SURO](https://www.suro.cz/en), Czech Republic
