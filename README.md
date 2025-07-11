@@ -8,6 +8,8 @@ Currently supported formats (reading only):
 - Safecast LOG
 - ERS
 
+[Documentation](https://opengeolabs.gitlab.io/radiation-toolbox/radiation-toolbox-reader/)
+
 ## Requirements
 
 - Python >= 3.9
