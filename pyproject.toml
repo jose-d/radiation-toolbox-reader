@@ -49,8 +49,8 @@ license = {text = "GPLv3"}
 dependencies = [
     'python-dateutil',
     'pyproj',
-    'gdal'
+    'gdal>=3.8'
 ]
 [project.urls]
-# documentation = ''
+documentation = 'https://opengeolabs.gitlab.io/radiation-toolbox/radiation-toolbox-reader/'
 repository = 'https://gitlab.com/opengeolabs/radiation-toolbox/radiation-toolbox-reader'

@@ -13,7 +13,7 @@ Currently supported formats (reading only):
 ## Requirements
 
 - Python >= 3.9
-- GDAL >= 3.7
+- GDAL >= 3.8
 
 ## Installation
 
