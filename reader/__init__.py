@@ -310,6 +310,7 @@ class ReaderBase(AbstractContextManager['ReaderBase']):
 
         # write features
         layer_defn = layer.GetLayerDefn()
+        layer.StartTransaction()
         for rec in self:
             feature = ogr.Feature(layer_defn)
             for idx, value in enumerate(rec.values()):
@@ -319,6 +320,7 @@ class ReaderBase(AbstractContextManager['ReaderBase']):
             feature.SetGeometry(geometry)
             layer.CreateFeature(feature)
             feature = None
+        layer.CommitTransaction()
 
         # write metadata
         meta = self.metadata
