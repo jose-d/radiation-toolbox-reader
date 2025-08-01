@@ -8,6 +8,13 @@ from types import TracebackType
 from collections import OrderedDict
 from enum import Enum
 
+try:
+    from osgeo import gdal, ogr, osr
+    gdal.UseExceptions()
+    hasGDAL = True
+except ImportError:
+    hasGDAL = False
+
 from .exceptions import ReaderError, ReaderExportError, ReaderExportDuplication
 from .logger import ReaderLogger
 
@@ -247,12 +254,12 @@ class ReaderBase(AbstractContextManager['ReaderBase']):
         :param bool overwrite: True to overwrite existing target data source
         :param str single_table: name of table where to insert data records from multiple imported files or None (create a new table for each imported file)
         """
+        if hasGDAL is False:
+            raise ReaderExportError("GDAL library required for exporting data.")
+
         if driver_name not in ("GPKG", "SQLite"):
             ReaderLogger.warning(f"GDAL driver {driver_name} is not supported. "
                                  "Its functionality is not guaranteed.")
-
-        from osgeo import gdal
-        gdal.UseExceptions()
 
         driver = gdal.GetDriverByName(driver_name)
         if driver is None:
@@ -277,8 +284,6 @@ class ReaderBase(AbstractContextManager['ReaderBase']):
         :param GDALDataset ds: target GDAL dataset
         :param str single_table: name of table where to insert data records from multiple imported files or None (create a new table for each imported file)
         """
-        from osgeo import ogr, osr
-
         # collect fields
         field_names = []
         field_types = []
@@ -339,7 +344,9 @@ class ReaderBase(AbstractContextManager['ReaderBase']):
         :param GDALDataset ds: target GDAL dataset or None to create a new dataset
         :param str single_table: name of table where to insert data records from multiple imported files or None (create a new table for each imported file)
         """
-        from osgeo import gdal
+        if hasGDAL is False:
+            raise ReaderExportError("GDAL library required for exporting data.")
+
         if ds is None:
             driver = gdal.GetDriverByName('Memory')
             ds = driver.Create('', 0, 0, 0, gdal.GDT_Unknown)
