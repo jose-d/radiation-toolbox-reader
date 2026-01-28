@@ -136,7 +136,7 @@ class TestReaderLog(TestReader):
                 continue
 
             lyr = ds.GetLayer(idx)
-            if lyr.GetName() == 'safecast_metadata':
+            if lyr.GetName().endswith('metadata'):
                 assert lyr.GetFeatureCount() == len(files)
             else:
                 if single_table is not None:

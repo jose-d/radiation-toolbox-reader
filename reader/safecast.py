@@ -66,32 +66,17 @@ class SafecastReader(ReaderBase):
         :param str filepath: file name to be imported
         :param bool compute_attributes: level of computed attributes
         """
-        self.format_version = None
-        self.deadtime = None
         self.nlines = 0
-        # default for safecast
-        self.callibration_coefficient = 0.0029940119760479
-
         try:
             super().__init__(filepath, computed_attributes=computed_attributes)
             self.nlines = self._count('$')
         except (IOError, ReaderError) as e:
             raise ReaderError("{}".format(e))
 
+        self.callibration_coefficient = self.metadata['callibration_coefficient']
+
         self._records = None
         self._record_idx = -1
-
-    @property
-    def metadata(self):
-        return {
-            'table': 'safecast_metadata',
-            'columns': {
-                'filename': self._filepath.name,
-                'format': self.format_version,
-                'deadtime': self.deadtime,
-                'callibration_coefficient': self.callibration_coefficient
-            }
-        }
 
     def _next_data_item_(self):
         """Read next data record.
@@ -149,46 +134,46 @@ class SafecastReader(ReaderBase):
     def _readHeader(self):
         """Read LOG header and store metadata records.
         """
-        # TODO: be less pedantic
-        def _read_header_line(line, header_line):
+        def _read_header_line(line, header_line, metadata):
             line = line[1:].strip()
             if header_line == 0 and line != "NEW LOG":
-                raise ReaderError("Unable to read '{}': "
-                                  "Invalid format".format(self._filepath))
+                ReaderLogger.warning("Unexpected header")
             elif header_line == 1 : # -> version
                 if not line.startswith('format'):
-                    raise ReaderError("Unable to read '{}': "
-                                      "Unknown version".format(self._filepath))
+                    ReaderLogger.warning("Unable to determine Safecast version")
                 else:
-                    self.format_version = line.split('=')[1]
+                    metadata['format_version'] = line.split('=')[1]
             elif header_line == 2: # -> deadtime
                 if not line.startswith('deadtime'):
-                    raise ReaderError("Unable to read '{}': "
-                                      "Unknown deadtime".format(self._filepath))
+                    ReaderLogger.warning("Unknown deadtime")
                 else:
-                    self.deadtime = line.split('=')[1]
+                    metadata['deadtime'] = line.split('=')[1]
             elif header_line == 3:
-                device_code = tuple(csv.reader([line]))[0][0]
-                if device_code == '$CZRA1':
+                metadata['device_code'] = tuple(csv.reader([line]))[0][0]
+                if metadata['device_code'] != '$CZRA1':
+                    # default for safecast
+                    metadata['callibration_coefficient'] = 0.0029940119760479
+                else:
                     # device type is czechrad, change callibration coefficient
-                    self.callibration_coefficient = 0.0030441400304414
-                    # keep default otherwise
+                    metadata['callibration_coefficient'] = 0.0030441400304414
 
+        metadata = {}
         header_line = 0
-        self.reset()
         for line in self._fd:
             line = line.strip()
             if line.startswith('#'):
-                _read_header_line(line, header_line)
+                _read_header_line(line, header_line, metadata)
                 header_line += 1
             if header_line == 3:
                 ReaderLogger.debug("LOG header correct")
                 # read one more line to get the device id
-                _read_header_line(next(self._fd), header_line)
+                _read_header_line(next(self._fd), header_line, metadata)
                 break
-        self.reset()
 
-        return header_line
+        if 'callibration_coefficient' not in metadata:
+            raise ReaderError('Unknown callibration coefficient')
+
+        return metadata
 
     def reset(self):
         """Reset reading.

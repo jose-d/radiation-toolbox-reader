@@ -38,13 +38,32 @@ class ReaderBase(AbstractContextManager['ReaderBase']):
     """Base reader class.
     """
     _scan_attributes = True
-
+    _encoding = 'utf-8'
+    _encoding_candidates = []
     def __init__(self, filepath, rb=False, computed_attributes=ComputedAttributes.No):
         self._filepath = Path(filepath)
 
         # open data input file
         self._open_flag = 'rb' if rb else 'r'
-        self._fd = self._open()
+        self._fd = self._open(self._encoding)
+
+        # read header -> metadata
+        try:
+            self.metadata = self._readHeader()
+        except UnicodeDecodeError:
+            # try other candidate encodings
+            for enc in self._encoding_candidates:
+                self._fd.close()
+                self._fd = None
+                self._fd = self._open(enc)
+                try:
+                    self.metadata = self._readHeader()
+                except UnicodeDecodeError:
+                    pass
+                else:
+                    self._encoding = enc
+                    break
+        self.metadata['filename'] = self._filepath.name
 
         # attribute names & data types
         self._attributes = None
@@ -62,18 +81,15 @@ class ReaderBase(AbstractContextManager['ReaderBase']):
         """
         self.release()
 
-    @property
-    def metadata(self):
-        return {}
-
-    def _open(self):
+    def _open(self, encoding=None):
         """Open input file.
 
+        :param encoding: file encoding
         :return: file descriptor
         """
         if hasattr(self, "_fd") is False or self._fd is None:
             try:
-                self._fd = open(self._filepath, self._open_flag)
+                self._fd = open(self._filepath, self._open_flag, encoding=encoding)
             except IOError as e:
                 raise ReaderError("{}".format(e))
 
@@ -104,6 +120,11 @@ class ReaderBase(AbstractContextManager['ReaderBase']):
         """
         raise NotImplementedError()
 
+    def _readHeader(self):
+        """Read header metadata.
+        """
+        raise NotImplementedError()
+
     def _next_data_item(self):
         """Read next data record.
         """
@@ -127,7 +148,7 @@ class ReaderBase(AbstractContextManager['ReaderBase']):
     def reset(self):
         """Reset reading.
         """
-        self._fd = self._open()
+        self._fd = self._open(self._encoding)
         self._fd.seek(0)
 
     def release(self):
@@ -328,9 +349,8 @@ class ReaderBase(AbstractContextManager['ReaderBase']):
         layer.CommitTransaction()
 
         # write metadata
-        meta = self.metadata
-        if meta:
-            self._writeMetadata(ds, meta)
+        if self.metadata:
+            self._writeMetadata(ds, self.metadata)
 
         ds.FlushCache()
 
@@ -363,18 +383,19 @@ class ReaderBase(AbstractContextManager['ReaderBase']):
         """
         from osgeo import ogr
 
-        layer_name = metadata['table']
+        layer_name = "reader_metadata"
         layer = ds.GetLayerByName(layer_name)
         if layer is None:
             layer = ds.CreateLayer(layer_name, geom_type=ogr.wkbNone)
-            if 'columns' in metadata:
-                for key in metadata['columns']:
-                    field = ogr.FieldDefn(key, ogr.OFTString)
-                    layer.CreateField(field)
+            for key in metadata.keys():
+                field = ogr.FieldDefn(key, ogr.OFTString)
+                layer.CreateField(field)
 
         layer_defn = layer.GetLayerDefn()
         feat = ogr.Feature(layer_defn)
-        for key, value in metadata['columns'].items():
+        for key, value in metadata.items():
+            if isinstance(value, dict):
+                value = ';'.join([f'{k}:{v}' for k, v in value.items()])
             feat.SetField(key, value)
         layer.CreateFeature(feat)
         feat = None
