@@ -115,11 +115,3 @@ class ERSReader(ReaderBase):
         """Count data records.
         """
         return self._count('\nPA ')
-
-    def _getPoint(self, item):
-        """Get point coordinates.
-
-        :param OrderedDict: item
-
-        :return tuple: point coordinates (x, y)
-        """
