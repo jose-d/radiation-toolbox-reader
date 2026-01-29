@@ -114,7 +114,7 @@ class ERSReader(ReaderBase):
     def count(self):
         """Count data records.
         """
-        return self._count('PA ')
+        return self._count('\nPA ')
 
     def _getPoint(self, item):
         """Get point coordinates.
