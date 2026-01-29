@@ -93,7 +93,7 @@ class ERSReader(ReaderBase):
                     except ValueError:
                         k = it.strip()
                         v = ''
-                    if k == '#S':
+                    if k.startswith('#S'):
                         # see https://gitlab.com/opengeolabs/qgis-radiation-toolbox-plugin/issues/41#note_137813150
                         idx = 1
                         for s_v in v.strip().split(' '):
