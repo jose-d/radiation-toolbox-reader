@@ -37,6 +37,11 @@ def main(data_dir, data_format):
         logging.info(f"Reading {fn.name} ({i} of {files_count})...")
         try:
             with Reader(fn) as r:
+                count = 0
+                for f in r:
+                    count += 1
+                if r.count() != count:
+                    raise Exception(f"Count mismatch ({r.count()} vs {count}): '{fn.name}'")
                 logging.info(f"Success - {r.count()} records")
         except ReaderError as e:
             logging.error(e)
