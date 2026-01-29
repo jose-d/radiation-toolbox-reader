@@ -233,7 +233,13 @@ class ReaderBase(AbstractContextManager['ReaderBase']):
                         if row_modified['alias']:
                             row_modified['alias'] = '{} ({})'.format(name, row_modified['alias'])
                         self._attributes.update(addAttribute(row_modified))
+                        found = True
                         break
+                if not found:
+                    # attribute not found in defined attributes
+                    self._attributes.update(
+                        {name: {'type': str, 'alias': 'undefined', 'computed': ComputedAttributes.No}}
+                    )
         else:
             # add all attributes
             for row in def_attrbs:
