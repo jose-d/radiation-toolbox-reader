@@ -48,7 +48,6 @@ requires-python = ">=3.9"
 license = {text = "GPLv3"}
 dependencies = [
     'python-dateutil',
-    'pyproj',
     'gdal>=3.8'
 ]
 [project.urls]

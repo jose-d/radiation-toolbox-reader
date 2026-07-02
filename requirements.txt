@@ -1,3 +1,2 @@
 python-dateutil==2.9.0.post0
-pyproj==3.6.1
 gdal==3.9.2

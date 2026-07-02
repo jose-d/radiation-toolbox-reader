@@ -14,7 +14,6 @@ import time
 from datetime import datetime, timedelta, date
 from collections import OrderedDict
 
-import pyproj
 from dateutil import tz
 
 from .exceptions import ReaderError
@@ -338,10 +337,24 @@ class SafecastReader(ReaderBase):
 
         :return float distance
         """
-        geod = pyproj.Geod(ellps='WGS84')
-        _, _, distance = geod.inv(p1[0], p1[1], p2[0], p2[1])
+        from qgis.core import (
+            QgsCoordinateReferenceSystem,
+            QgsCoordinateTransformContext,
+            QgsDistanceArea,
+            QgsPointXY,
+        )
 
-        return distance
+        distance_area = QgsDistanceArea()
+        distance_area.setSourceCrs(
+            QgsCoordinateReferenceSystem("EPSG:4326"),
+            QgsCoordinateTransformContext(),
+        )
+        distance_area.setEllipsoid("WGS84")
+
+        return distance_area.measureLine(
+            QgsPointXY(p1[0], p1[1]),
+            QgsPointXY(p2[0], p2[1]),
+        )
 
     def computeAttributes(self, records):
         """Compute attributes.
