@@ -10,7 +10,6 @@ from builtins import object
 
 import os
 import csv
-import time
 from datetime import datetime, timedelta, date
 from collections import OrderedDict
 
@@ -68,11 +67,10 @@ class SafecastReader(ReaderBase):
         self.nlines = 0
         try:
             super().__init__(filepath, computed_attributes=computed_attributes)
-            self.nlines = self._count('$')
+            self.callibration_coefficient = self.metadata['callibration_coefficient']
+            self.nlines = self._count_records()
         except (IOError, ReaderError) as e:
             raise ReaderError("{}".format(e))
-
-        self.callibration_coefficient = self.metadata['callibration_coefficient']
 
         self._records = None
         self._record_idx = -1
@@ -102,12 +100,32 @@ class SafecastReader(ReaderBase):
                 k = attrs[idx]
                 record[k] = self._attributes[k]['type'](data[idx]) if self._attributes else data[idx]
 
+            try:
+                datetime.strptime(record['date_time'].split('T', 1)[1], "%H:%M:%SZ")
+            except (IndexError, ValueError):
+                ReaderLogger.warning(
+                    f"Invalid timestamp record skipped (file {self._filepath.name}): {line}"
+                )
+                continue
+
             if self.computed_attributes.value >= ComputedAttributes.PerRecordOnly.value:
                 for k, v in self._attributes.items():
                     if v['computed'] == ComputedAttributes.PerRecordOnly: # may be computed per record
                         record[k] = self._computeAttribute(k, record)
 
             return record
+
+    def _count_records(self):
+        """Count valid data records."""
+        self.reset()
+        count = 0
+        while True:
+            record = self._next_data_item_()
+            if record is None:
+                break
+            count += 1
+        self.reset()
+        return count
 
     def _next_data_item(self):
         """Read next data record.
@@ -292,28 +310,32 @@ class SafecastReader(ReaderBase):
         if self._checkDate(curr_datetime):
             return curr_datetime, False
 
-        if prev_datetime:
-            timediff = self._datetimediff(
-                prev_datetime, curr_datetime, timeonly=True
-            ).total_seconds()
-            fdate = datetime.strptime(
-                prev_datetime, "%Y-%m-%dT%H:%M:%SZ"
-            ).date()
-        else:
-            timediff = 0
-            fdate = first_valid_date
+        try:
+            if prev_datetime:
+                timediff = self._datetimediff(
+                    prev_datetime, curr_datetime, timeonly=True
+                ).total_seconds()
+                fdate = datetime.strptime(
+                    prev_datetime, "%Y-%m-%dT%H:%M:%SZ"
+                ).date()
+            else:
+                timediff = 0
+                fdate = first_valid_date
 
-        if timediff < 0:
-            # next date
-            fdate += timedelta(days=1)
+            if timediff < 0:
+                # next date
+                fdate += timedelta(days=1)
 
-        return datetime.strftime(
-            datetime.combine(
-                fdate,
-                datetime.strptime(curr_datetime.split('T', 1)[1], "%H:%M:%SZ").time()
-            ),
-            '%Y-%m-%dT%H:%M:%SZ'
-        ), True
+            return datetime.strftime(
+                datetime.combine(
+                    fdate,
+                    datetime.strptime(curr_datetime.split('T', 1)[1], "%H:%M:%SZ").time()
+                ),
+                '%Y-%m-%dT%H:%M:%SZ'
+            ), True
+        except (TypeError, ValueError):
+            ReaderLogger.warning(f"Invalid timestamp skipped from route computation: {curr_datetime}")
+            return None, False
 
     @staticmethod
     def _td2str(td):
@@ -381,9 +403,7 @@ class SafecastReader(ReaderBase):
         speed = 0
         prev_date_time = None
         prev_point = None
-        prev = None  # previous record
         dose_inc = 0
-        start = time.perf_counter()
         for record in records:
             # fix date if invalid
             date_time, newdt = self._validateDate(record["date_time"], prev_date_time, first_valid_date)
@@ -395,13 +415,17 @@ class SafecastReader(ReaderBase):
 
             # compute local time (from datetime)
             try:
-                time_local = self._datetime2localtime(date_time)
+                time_local = self._datetime2localtime(date_time) if date_time else "unknown"
             except ValueError:
                 time_local = "unknown"
 
             # compute coordinates
             point = record.point
-            if prev is not None:
+            if date_time is None:
+                speed = 0
+                dose_inc = 0
+                point = None
+            elif prev_date_time is not None:
                 timediff = self._datetimediff(
                     prev_date_time,
                     date_time
@@ -432,9 +456,9 @@ class SafecastReader(ReaderBase):
                 dose_cum += dose_inc
 
             # set previous feature for next run
-            prev = record
-            prev_date_time = date_time
-            prev_point = point
+            if point is not None:
+                prev_date_time = date_time
+                prev_point = point
 
             attrs = OrderedDict([
                 ("speed_kmph", speed),

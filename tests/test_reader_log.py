@@ -180,3 +180,19 @@ class TestReaderLog(TestReader):
         })
         self._record(Reader, Path(self.dataFile).parent / "sample_1.log",
                      ref, args={"computed_attributes": ComputedAttributes.All}, idx=1)
+
+    def test_009(self, monkeypatch):
+        """Test syntactically invalid time."""
+        monkeypatch.setattr(Reader, "_distance", staticmethod(lambda p1, p2: 0))
+
+        with Reader(
+            Path(self.dataFile).parent / "sample_invalid_time.log",
+            computed_attributes=ComputedAttributes.All
+        ) as reader:
+            records = list(reader)
+
+        assert len(records) == 2
+        assert {record["date_time"] for record in records} == {
+            "2026-06-27T08:51:28Z",
+            "2026-06-27T08:51:33Z",
+        }
