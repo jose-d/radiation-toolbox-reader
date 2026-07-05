@@ -48,7 +48,7 @@ requires-python = ">=3.9"
 license = {text = "GPLv3"}
 dependencies = [
     'python-dateutil',
-    'gdal>=3.8'
+    'gdal>=3.13.1'
 ]
 [project.urls]
 documentation = 'https://opengeolabs.gitlab.io/radiation-toolbox/radiation-toolbox-reader/'

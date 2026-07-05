@@ -1,2 +1,2 @@
 python-dateutil==2.9.0.post0
-gdal==3.9.2
+gdal==3.13.1
